@@ -32,9 +32,16 @@ def polypoint2D(point, colors):
     # Exemplo:
     gpu.GPU.set_pixel(3, 1, 255, 0, 0) # altera um pixel da imagem (u, v, r, g, b)
     # cuidado com as cores, o X3D especifica de (0,1) e o Framebuffer de (0,255)
+   
+    i = 0
+    while (i < len(point)-1):
+        gpu.GPU.set_pixel(int(point[i]), int(point[i+1]), 255, 0, 255)
+        i=i + 2
 
+        
 # web3d.org/documents/specifications/19775-1/V3.0/Part01/components/geometry2D.html#Polyline2D
 def polyline2D(lineSegments, colors):
+    # TODO
     """Função usada para renderizar Polyline2D."""
     # Nessa função você receberá os pontos de uma linha no parâmetro lineSegments, esses
     # pontos são uma lista de pontos x, y sempre na ordem. Assim point[0] é o valor da
@@ -51,10 +58,12 @@ def polyline2D(lineSegments, colors):
     # Exemplo:
     pos_x = gpu.GPU.width//2
     pos_y = gpu.GPU.height//2
+    print(f"pos_x = {pos_x}, pos_y = {pos_y}")
     gpu.GPU.set_pixel(pos_x, pos_y, 255, 0, 0) # altera um pixel da imagem (u, v, r, g, b)
 
 # web3d.org/documents/specifications/19775-1/V3.0/Part01/components/geometry2D.html#TriangleSet2D
 def triangleSet2D(vertices, colors):
+    # TODO
     """Função usada para renderizar TriangleSet2D."""
     # Nessa função você receberá os vertices de um triângulo no parâmetro vertices,
     # esses pontos são uma lista de pontos x, y sempre na ordem. Assim point[0] é o
