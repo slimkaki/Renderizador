@@ -152,7 +152,7 @@ def inside(vertices, ponto, colors):
     L1 = (x - vertices[2])*dY1 - (y - vertices[3])*dX1
     L2 = (x - vertices[4])*dY2 - (y - vertices[5])*dX2
 
-    if (L0 > 0 and L1 > 0 and L2 > 0):    
+    if (L0 >= 0 and L1 >= 0 and L2 >= 0):    
         gpu.GPU.set_pixel(int(x), int(y), r, g, b)
 
     

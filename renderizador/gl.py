@@ -6,14 +6,16 @@
 """
 Biblioteca Gráfica / Graphics Library.
 
-Desenvolvido por: <SEU NOME AQUI>
+Desenvolvido por: Lucas Leal e Rafael Almada
 Disciplina: Computação Gráfica
-Data:
+Data: 16/08/2021
 """
 
 import time         # Para operações com tempo
 
 import gpu          # Simula os recursos de uma GPU
+import numpy as np
+import math
 
 class GL:
     """Classe que representa a biblioteca gráfica (Graphics Library)."""
@@ -30,9 +32,10 @@ class GL:
         GL.height = height
         GL.near = near
         GL.far = far
-
+        
     @staticmethod
     def triangleSet(point, colors):
+        # TODO 3
         """Função usada para renderizar TriangleSet."""
         # Nessa função você receberá pontos no parâmetro point, esses pontos são uma lista
         # de pontos x, y, e z sempre na ordem. Assim point[0] é o valor da coordenada x do
@@ -48,12 +51,23 @@ class GL:
         # O print abaixo é só para vocês verificarem o funcionamento, DEVE SER REMOVIDO.
         print("TriangleSet : pontos = {0}".format(point)) # imprime no terminal pontos
         print("TriangleSet : colors = {0}".format(colors)) # imprime no terminal as cores
-
+        print("TriangleSet : len de pontos = {0}".format(len(point)))
         # Exemplo de desenho de um pixel branco na coordenada 10, 10
-        gpu.GPU.draw_pixels([10, 10], gpu.GPU.RGB8, [255, 255, 255])  # altera pixel
+        for i in range(0, len(point), 9):
+            pos = np.array([[point[i],   point[i+3], point[i+6]],
+                            [point[i+1], point[i+4], point[i+7]],
+                            [point[i+2], point[i+5], point[i+8]],
+                            [         1,          1,          1]])
+            print(f"pos triangulo {i}: \n {pos}")
+        # gpu.GPU.draw_pixels([10, 10], gpu.GPU.RGB8, [255, 255, 255])  # altera pixel
+        # for i in range(0, len(point), 3):
+        #     print(f"i = {i}")
+        #     print(f"point[i] = {point[i]}\npoint[i+1] = {point[i+1]}")
+        #     gpu.GPU.draw_pixels([int(point[i]), int(point[i+1])], gpu.GPU.RGB8, [255, 255, 255])
 
     @staticmethod
     def viewpoint(position, orientation, fieldOfView):
+        # TODO 1
         """Função usada para renderizar (na verdade coletar os dados) de Viewpoint."""
         # Na função de viewpoint você receberá a posição, orientação e campo de visão da
         # câmera virtual. Use esses dados para poder calcular e criar a matriz de projeção
@@ -64,8 +78,28 @@ class GL:
         print("position = {0} ".format(position), end='')
         print("orientation = {0} ".format(orientation), end='')
         print("fieldOfView = {0} ".format(fieldOfView))
+        
+        # position = [-5.0, 3.0, 12.0] orientation = [0, 0, 1, 0] fieldOfView = 0.7854
+        pos = np.array(position)
+        ori = np.array(orientation)
+        # GL.lookAt = np.dot(np.linalg.inv(ori),np.linalg.inv(pos))
+        # print(f"[VIEWPOINT] LookAt: {GL.lookAt}")
+
+        # parametrizando a visao perspectiva
+        top    = GL.near*math.tan(fieldOfView)
+        bottom = -top
+        right  = top*(GL.width/GL.height)
+        left   = -right
+
+        GL.P = np.array([[GL.near/right, 0, 0, 0],
+                         [0, GL.near/top, 0, 0],
+                         [0, 0, -((GL.far+GL.near)/(GL.far-GL.near)), -((2*GL.far*GL.near)/(GL.far-GL.near))],
+                         [0,0,-1,0]])
+        print(f"[VIEWPOINT] P = {GL.P}")
+        
 
     @staticmethod
+    # TODO 2
     def transform_in(translation, scale, rotation):
         """Função usada para renderizar (na verdade coletar os dados) de Transform."""
         # A função transform_in será chamada quando se entrar em um nó X3D do tipo Transform
@@ -75,14 +109,26 @@ class GL:
         # do objeto ao redor do eixo x, y, z por t radianos, seguindo a regra da mão direita.
         # Quando se entrar em um nó transform se deverá salvar a matriz de transformação dos
         # modelos do mundo em alguma estrutura de pilha.
-
+        # scale rot transl
         # O print abaixo é só para vocês verificarem o funcionamento, DEVE SER REMOVIDO.
         print("Transform : ", end='')
         if translation:
+            GL.translation_matrix = np.array([[1, 0, 0, translation[0]],
+                                              [0, 1, 0, translation[1]],
+                                              [0, 0, 1, translation[2]],
+                                              [0, 0, 0, 1]])
             print("translation = {0} ".format(translation), end='') # imprime no terminal
         if scale:
+            GL.scale_matrix = np.array([[scale[0],0,0,0],
+                                        [0,scale[1],0,0],
+                                        [0,0,scale[2],0],
+                                        [0,0,0,1]])
             print("scale = {0} ".format(scale), end='') # imprime no terminal
         if rotation:
+            GL.rotation_matrix = np.array([[],
+                                        [],
+                                        [],
+                                        []])
             print("rotation = {0} ".format(rotation), end='') # imprime no terminal
         print("")
 
@@ -99,6 +145,7 @@ class GL:
 
     @staticmethod
     def triangleStripSet(point, stripCount, colors):
+        # TODO
         """Função usada para renderizar TriangleStripSet."""
         # A função triangleStripSet é usada para desenhar tiras de triângulos interconectados,
         # você receberá as coordenadas dos pontos no parâmetro point, esses pontos são uma
@@ -123,6 +170,7 @@ class GL:
 
     @staticmethod
     def indexedTriangleStripSet(point, index, colors):
+        # TODO
         """Função usada para renderizar IndexedTriangleStripSet."""
         # A função indexedTriangleStripSet é usada para desenhar tiras de triângulos
         # interconectados, você receberá as coordenadas dos pontos no parâmetro point, esses
@@ -145,6 +193,7 @@ class GL:
 
     @staticmethod
     def box(size, colors):
+        #TODO
         """Função usada para renderizar Boxes."""
         # A função box é usada para desenhar paralelepípedos na cena. O Box é centrada no
         # (0, 0, 0) no sistema de coordenadas local e alinhado com os eixos de coordenadas
