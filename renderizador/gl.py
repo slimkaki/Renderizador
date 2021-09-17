@@ -32,10 +32,51 @@ class GL:
         GL.height = height
         GL.near = near
         GL.far = far
+        GL.screen_matrix = np.array([[width / 2,                    0,    0,  width / 2], 
+                                     [        0,         - height / 2,    0, height / 2],
+                                     [        0,                    0,    1,          0],
+                                     [        0,                    0,    0,          1]])
+    
+    @staticmethod
+    def pointsToScreen(points):
+        """Função que leva os pontos do espaço 3D para a Tela 2D"""
+        # Esta função retorna 'pontos' que é uma lista de numpy arrays com cada ponto, sendo 
+        # que cada ponto é uma matriz com x, y, z, w
+
+        # Lista para salvar os pontos
+        pontos = [] 
+
+        # Ordem:
+        #   Mundo -> LookAt -> Perspectiva -> divide por w -> screen -> rasteriza   
+
+        # Matriz de Mundo
+        GL.world_matrix = np.matmul(np.matmul(GL.translation_matrix,GL.rotation_matrix), GL.scale_matrix) 
         
+        # Matriz de LookAt -> Camera 
+        GL.lookAt = np.matmul(np.linalg.inv(GL.translation_matrix_camera), np.linalg.inv(GL.orientation_matrix_camera)) # translation do ponto usado errado
+
+        for i in range(0, len(points), 3):
+            p = np.array([[points[i]],
+                          [points[i+1]],
+                          [points[i+2]],
+                          [1]])
+            model_to_world = np.matmul(GL.world_matrix, p)
+
+            world_to_cam = np.matmul(GL.lookAt, model_to_world)
+
+            cam_to_perspective = np.matmul(GL.P, world_to_cam)
+
+            # Divide por w
+            cam_to_perspective /= cam_to_perspective[3][0]
+
+            perspective_to_screen = np.matmul(GL.screen_matrix, cam_to_perspective)
+            
+            pontos.append(perspective_to_screen)
+
+        return pontos
+
     @staticmethod
     def triangleSet(point, colors):
-        # TODO 3
         """Função usada para renderizar TriangleSet."""
         # Nessa função você receberá pontos no parâmetro point, esses pontos são uma lista
         # de pontos x, y, e z sempre na ordem. Assim point[0] é o valor da coordenada x do
@@ -47,41 +88,38 @@ class GL:
         # triângulo, e assim por diante.
         # O parâmetro colors é um dicionário com os tipos cores possíveis, para o TriangleSet
         # você pode assumir o desenho das linhas com a cor emissiva (emissiveColor).
+        
+        pontos = GL.pointsToScreen(point)
 
-        # O print abaixo é só para vocês verificarem o funcionamento, DEVE SER REMOVIDO.
-        print("TriangleSet : pontos = {0}".format(point)) # imprime no terminal pontos
-        print("TriangleSet : colors = {0}".format(colors)) # imprime no terminal as cores
-        print("TriangleSet : len de pontos = {0}".format(len(point)))
-        # Exemplo de desenho de um pixel branco na coordenada 10, 10
-        GL.lookAt = np.matmul(np.matmul(np.linalg.inv(GL.translation_matrix_camera)), np.linalg.inv(GL.orientation_matrix_camera)) # translation do ponto usado errado
+        for tri in range(0, len(pontos), 3):
+            for i in range(GL.width):
+                for j in range(GL.height):
+                    GL.inside(pontos[tri:tri+3], [i, j], colors)
+        
+    @staticmethod
+    def inside(vertices, ponto, colors):
+        # print(f"Na inside: vertices = {len(vertices)}, ponto = {ponto}")
+        r = int(colors["diffuseColor"][0]*255)
+        g = int(colors["diffuseColor"][1]*255)
+        b = int(colors["diffuseColor"][2]*255)
 
-        print("[TriangleSet] Aqui a lookAt: \n", GL.lookAt)
+        x, y = ponto[0], ponto[1]
+        
+        dX0 = vertices[1][0][0] - vertices[0][0][0]
+        dY0 = vertices[1][1][0] - vertices[0][1][0]
 
-        result = np.matmul(GL.lookAt, GL.P)
+        dX1 = vertices[2][0][0] - vertices[1][0][0]
+        dY1 = vertices[2][1][0] - vertices[1][1][0]
 
-        for i in range(0, len(point), 9):
-            points = np.array([[point[i],  point[i+3], point[i+6]],
-                               [point[i+1], point[i+4], point[i+7]],
-                               [point[i+2], point[i+5], point[i+8]],
-                               [         1,          1,          1]])
-            new_points = np.matmul(result, points)
-            print("====================================================")
-            print(f"[TriangleSet] antes de dividir por w: \n{new_points}")
-            for j in range(3):
-                new_points[0][j] /= new_points[3][j]
-                new_points[1][j] /= new_points[3][j]
-                new_points[2][j] /= new_points[3][j]
-                new_points[3][j] /= new_points[3][j]
-            print(f"[TriangleSet] depois de dividir por w: \n{new_points}")
-            # gpu.GPU.draw_pixels([int(new_points[0][0]), int(new_points[1][0])], gpu.GPU.RGB8, [255, 0, 0])
-            # gpu.GPU.draw_pixels([int(new_points[0][1]), int(new_points[1][1])], gpu.GPU.RGB8, [255, 0, 0])
-            # gpu.GPU.draw_pixels([int(new_points[0][2]), int(new_points[1][2])], gpu.GPU.RGB8, [255, 0, 0])
-        #     print(f"pos triangulo {i}: \n {pos}"
-        # gpu.GPU.draw_pixels([10, 10], gpu.GPU.RGB8, [255, 255, 255])  # altera pixel
-        # for i in range(0, len(point), 3):
-        #     print(f"i = {i}")
-        #     print(f"point[i] = {point[i]}\npoint[i+1] = {point[i+1]}")
-        #     gpu.GPU.draw_pixels([int(point[i]), int(point[i+1])], gpu.GPU.RGB8, [255, 255, 255])
+        dX2 = vertices[0][0][0] - vertices[2][0][0]
+        dY2 = vertices[0][1][0] - vertices[2][1][0]
+
+        L0 = (x - vertices[0][0][0])*dY0 - (y - vertices[0][1][0])*dX0
+        L1 = (x - vertices[1][0][0])*dY1 - (y - vertices[1][1][0])*dX1
+        L2 = (x - vertices[2][0][0])*dY2 - (y - vertices[2][1][0])*dX2
+
+        if (L0 >= 0 and L1 >= 0 and L2 >= 0):    
+            gpu.GPU.set_pixel(int(x), int(y), r, g, b)
 
     @staticmethod
     def viewpoint(position, orientation, fieldOfView):
@@ -91,37 +129,23 @@ class GL:
         # câmera virtual. Use esses dados para poder calcular e criar a matriz de projeção
         # perspectiva para poder aplicar nos pontos dos objetos geométricos.
 
-        # O print abaixo é só para vocês verificarem o funcionamento, DEVE SER REMOVIDO.
-        print("Viewpoint : ", end='')
-        print("position = {0} ".format(position), end='')
-        print("orientation = {0} ".format(orientation), end='')
-        print("fieldOfView = {0} ".format(fieldOfView))
+        # Calculando o FOV em y
+        fovy = 2*math.atan(math.tan(fieldOfView/2)*GL.height/math.sqrt(GL.height**2 + GL.width**2))
         
-        # position = [-5.0, 3.0, 12.0] orientation = [0, 0, 1, 0] fieldOfView = 0.7854
-        pos = np.array(position)
-        ori = np.array(orientation)
-        # GL.lookAt = np.dot(np.linalg.inv(ori),np.linalg.inv(pos))
-        # print(f"[VIEWPOINT] LookAt: {GL.lookAt}")
-
         # parametrizando a visao perspectiva
-        top    = GL.near*math.tan(fieldOfView)
-        bottom = -top
+        top    = GL.near*math.tan(fovy)
         right  = top*(GL.width/GL.height)
-        left   = -right
 
         GL.P = np.array([[GL.near/right, 0, 0, 0],
                          [0, GL.near/top, 0, 0],
                          [0, 0, -((GL.far+GL.near)/(GL.far-GL.near)), -((2*GL.far*GL.near)/(GL.far-GL.near))],
                          [0,0,-1,0]])
-        print(f"[VIEWPOINT] P = {GL.P}")
 
         GL.translation_matrix_camera= np.array([[1, 0, 0, position[0]],
                                                [0, 1, 0, position[1]],
                                                [0, 0, 1, position[2]],
                                                [0, 0, 0, 1]])
         if orientation:
-            if(orientation[0] + orientation[1] + orientation[2] > 1):
-                print("mais de um orientation")
             if (orientation[0] > 0):
                 # Rotação em x
                 GL.orientation_matrix_camera = np.array([[1,0,0,0],
@@ -153,23 +177,18 @@ class GL:
         # Quando se entrar em um nó transform se deverá salvar a matriz de transformação dos
         # modelos do mundo em alguma estrutura de pilha.
         # scale rot transl
-        # O print abaixo é só para vocês verificarem o funcionamento, DEVE SER REMOVIDO.
-        print("Transform : ", end='')
+
         if translation:
             GL.translation_matrix = np.array([[1, 0, 0, translation[0]],
                                               [0, 1, 0, translation[1]],
                                               [0, 0, 1, translation[2]],
                                               [0, 0, 0, 1]])
-            print("translation = {0} ".format(translation), end='') # imprime no terminal
         if scale:
             GL.scale_matrix = np.array([[scale[0],0,0,0],
                                         [0,scale[1],0,0],
                                         [0,0,scale[2],0],
                                         [0,0,0,1]])
-            print("scale = {0} ".format(scale), end='') # imprime no terminal
         if rotation:
-            if(rotation[0] + rotation[1] + rotation[2] > 1):
-                print("mais de um rotation")
             if (rotation[0] > 0):
                 # Rotação em x
                 GL.rotation_matrix = np.array([[1,0,0,0],
@@ -188,8 +207,6 @@ class GL:
                                                [math.sin(rotation[3]), math.cos(rotation[3]), 0, 0],
                                                [0, 0, 1, 0],
                                                [0, 0, 0, 1]])
-            print("rotation = {0} ".format(rotation), end='') # imprime no terminal
-        print("")
 
     @staticmethod
     def transform_out():
@@ -216,6 +233,8 @@ class GL:
         # primeiro triângulo será com os vértices 0, 1 e 2, depois serão os vértices 1, 2 e 3,
         # depois 2, 3 e 4, e assim por diante. Cuidado com a orientação dos vértices, ou seja,
         # todos no sentido horário ou todos no sentido anti-horário, conforme especificado.
+
+        pontos = GL.pointsToScreen(point)
 
         # O print abaixo é só para vocês verificarem o funcionamento, DEVE SER REMOVIDO.
         print("TriangleStripSet : pontos = {0} ".format(point), end='')
@@ -252,7 +271,6 @@ class GL:
 
     @staticmethod
     def box(size, colors):
-        #TODO
         """Função usada para renderizar Boxes."""
         # A função box é usada para desenhar paralelepípedos na cena. O Box é centrada no
         # (0, 0, 0) no sistema de coordenadas local e alinhado com os eixos de coordenadas
