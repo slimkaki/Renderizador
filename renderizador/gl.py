@@ -97,26 +97,39 @@ class GL:
                     GL.inside(pontos[tri:tri+3], [i, j], colors)
         
     @staticmethod
-    def inside(vertices, ponto, colors):
-        # print(f"Na inside: vertices = {len(vertices)}, ponto = {ponto}")
+    def inside(vertices, ponto, colors, orientation = 2):
+        """Função que pinta os pixels delimitados pelos vértices, formando os triângulos"""
+
         r = int(colors["diffuseColor"][0]*255)
         g = int(colors["diffuseColor"][1]*255)
         b = int(colors["diffuseColor"][2]*255)
 
         x, y = ponto[0], ponto[1]
         
-        dX0 = vertices[1][0][0] - vertices[0][0][0]
-        dY0 = vertices[1][1][0] - vertices[0][1][0]
+        if (orientation % 2 == 0):
+            x1, x2, x3 = vertices[0][0][0], vertices[1][0][0], vertices[2][0][0]
+            y1, y2, y3 = vertices[0][1][0], vertices[1][1][0], vertices[2][1][0]
 
-        dX1 = vertices[2][0][0] - vertices[1][0][0]
-        dY1 = vertices[2][1][0] - vertices[1][1][0]
+        else:
+            # Inverte a ordem dos pontos
+            x1, x2, x3 = vertices[2][0][0], vertices[1][0][0], vertices[0][0][0]
+            y1, y2, y3 = vertices[2][1][0], vertices[1][1][0], vertices[0][1][0]
 
-        dX2 = vertices[0][0][0] - vertices[2][0][0]
-        dY2 = vertices[0][1][0] - vertices[2][1][0]
+        # P2 - P1
+        dX0 = x2 - x1
+        dY0 = y2 - y1
 
-        L0 = (x - vertices[0][0][0])*dY0 - (y - vertices[0][1][0])*dX0
-        L1 = (x - vertices[1][0][0])*dY1 - (y - vertices[1][1][0])*dX1
-        L2 = (x - vertices[2][0][0])*dY2 - (y - vertices[2][1][0])*dX2
+        # P2 - P3
+        dX1 = x3 - x2
+        dY1 = y3 - y2
+
+        # P3 - P1
+        dX2 = x1 - x3
+        dY2 = y1 - y3
+
+        L0 = (x - x1)*dY0 - (y - y1)*dX0
+        L1 = (x - x2)*dY1 - (y - y2)*dX1
+        L2 = (x - x3)*dY2 - (y - y3)*dX2
 
         if (L0 >= 0 and L1 >= 0 and L2 >= 0):    
             gpu.GPU.set_pixel(int(x), int(y), r, g, b)
@@ -244,7 +257,7 @@ class GL:
         print("TriangleStripSet : colors = {0}".format(colors)) # imprime no terminal as cores
 
         # Exemplo de desenho de um pixel branco na coordenada 10, 10
-        gpu.GPU.draw_pixels([10, 10], gpu.GPU.RGB8, [255, 255, 255])  # altera pixel
+        # gpu.GPU.draw_pixels([10, 10], gpu.GPU.RGB8, [255, 255, 255])  # altera pixel
 
     @staticmethod
     def indexedTriangleStripSet(point, index, colors):
@@ -262,12 +275,16 @@ class GL:
         # depois 2, 3 e 4, e assim por diante. Cuidado com a orientação dos vértices, ou seja,
         # todos no sentido horário ou todos no sentido anti-horário, conforme especificado.
 
-        # O print abaixo é só para vocês verificarem o funcionamento, DEVE SER REMOVIDO.
-        print("IndexedTriangleStripSet : pontos = {0}, index = {1}".format(point, index))
-        print("IndexedTriangleStripSet : colors = {0}".format(colors)) # imprime as cores
+        pontos = GL.pointsToScreen(point)
 
-        # Exemplo de desenho de um pixel branco na coordenada 10, 10
-        gpu.GPU.draw_pixels([10, 10], gpu.GPU.RGB8, [255, 255, 255])  # altera pixel
+        orientation = 1
+        for i in range(len(index)):
+            if (index[i+2] < 0):
+                break
+            orientation += 1
+            for x in range(GL.width):
+                for y in range(GL.height):
+                    GL.inside(pontos[i:i+3], [x, y], colors, orientation)
 
     @staticmethod
     def box(size, colors):
