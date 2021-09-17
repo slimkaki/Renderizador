@@ -53,12 +53,30 @@ class GL:
         print("TriangleSet : colors = {0}".format(colors)) # imprime no terminal as cores
         print("TriangleSet : len de pontos = {0}".format(len(point)))
         # Exemplo de desenho de um pixel branco na coordenada 10, 10
+        GL.lookAt = np.matmul(np.matmul(np.linalg.inv(GL.rotation_matrix), np.linalg.inv(GL.translation_matrix)), np.linalg.inv(GL.rotation_matrix))
+
+        print("[TriangleSet] Aqui a lookAt: \n", GL.lookAt)
+
+        result = np.matmul(GL.lookAt, GL.P)
+
         for i in range(0, len(point), 9):
-            pos = np.array([[point[i],   point[i+3], point[i+6]],
-                            [point[i+1], point[i+4], point[i+7]],
-                            [point[i+2], point[i+5], point[i+8]],
-                            [         1,          1,          1]])
-            print(f"pos triangulo {i}: \n {pos}")
+            points = np.array([[point[i],  point[i+3], point[i+6]],
+                               [point[i+1], point[i+4], point[i+7]],
+                               [point[i+2], point[i+5], point[i+8]],
+                               [         1,          1,          1]])
+            new_points = np.matmul(result, points)
+            print("====================================================")
+            print(f"[TriangleSet] antes de dividir por w: \n{new_points}")
+            for j in range(3):
+                new_points[0][j] /= new_points[3][j]
+                new_points[1][j] /= new_points[3][j]
+                new_points[2][j] /= new_points[3][j]
+                new_points[3][j] /= new_points[3][j]
+            print(f"[TriangleSet] depois de dividir por w: \n{new_points}")
+            # gpu.GPU.draw_pixels([int(new_points[0][0]), int(new_points[1][0])], gpu.GPU.RGB8, [255, 0, 0])
+            # gpu.GPU.draw_pixels([int(new_points[0][1]), int(new_points[1][1])], gpu.GPU.RGB8, [255, 0, 0])
+            # gpu.GPU.draw_pixels([int(new_points[0][2]), int(new_points[1][2])], gpu.GPU.RGB8, [255, 0, 0])
+        #     print(f"pos triangulo {i}: \n {pos}"
         # gpu.GPU.draw_pixels([10, 10], gpu.GPU.RGB8, [255, 255, 255])  # altera pixel
         # for i in range(0, len(point), 3):
         #     print(f"i = {i}")
@@ -125,10 +143,26 @@ class GL:
                                         [0,0,0,1]])
             print("scale = {0} ".format(scale), end='') # imprime no terminal
         if rotation:
-            GL.rotation_matrix = np.array([[],
-                                        [],
-                                        [],
-                                        []])
+            if(rotation[0] + rotation[1] + rotation[2] > 1):
+                print("mais de um rotation")
+            if (rotation[0] > 0):
+                # Rotação em x
+                GL.rotation_matrix = np.array([[1,0,0,0],
+                                              [0,math.cos(rotation[3]),-math.sin(rotation[3]),0],
+                                              [0,math.sin(rotation[3]),math.cos(rotation[3]),0],
+                                              [0,0,0,1]])
+            elif (rotation[1] > 0):
+                # Rotação em y
+                GL.rotation_matrix = np.array([[math.cos(rotation[3]), 0, math.sin(rotation[3]), 0],
+                                               [0, 1, 0, 0],
+                                               [-math.sin(rotation[3]), 0, math.cos(rotation[3]), 0],
+                                               [0, 0, 0, 1]])
+            else:
+                # Rotação em z     
+                GL.rotation_matrix = np.array([[math.cos(rotation[3]),-math.sin(rotation[3]),0,0],
+                                               [math.sin(rotation[3]), math.cos(rotation[3]), 0, 0],
+                                               [0, 0, 1, 0],
+                                               [0, 0, 0, 1]])
             print("rotation = {0} ".format(rotation), end='') # imprime no terminal
         print("")
 
