@@ -53,7 +53,7 @@ class GL:
         print("TriangleSet : colors = {0}".format(colors)) # imprime no terminal as cores
         print("TriangleSet : len de pontos = {0}".format(len(point)))
         # Exemplo de desenho de um pixel branco na coordenada 10, 10
-        GL.lookAt = np.matmul(np.matmul(np.linalg.inv(GL.rotation_matrix), np.linalg.inv(GL.translation_matrix)), np.linalg.inv(GL.rotation_matrix))
+        GL.lookAt = np.matmul(np.matmul(np.linalg.inv(GL.translation_matrix_camera)), np.linalg.inv(GL.orientation_matrix_camera)) # translation do ponto usado errado
 
         print("[TriangleSet] Aqui a lookAt: \n", GL.lookAt)
 
@@ -114,7 +114,32 @@ class GL:
                          [0, 0, -((GL.far+GL.near)/(GL.far-GL.near)), -((2*GL.far*GL.near)/(GL.far-GL.near))],
                          [0,0,-1,0]])
         print(f"[VIEWPOINT] P = {GL.P}")
-        
+
+        GL.translation_matrix_camera= np.array([[1, 0, 0, position[0]],
+                                               [0, 1, 0, position[1]],
+                                               [0, 0, 1, position[2]],
+                                               [0, 0, 0, 1]])
+        if orientation:
+            if(orientation[0] + orientation[1] + orientation[2] > 1):
+                print("mais de um orientation")
+            if (orientation[0] > 0):
+                # Rotação em x
+                GL.orientation_matrix_camera = np.array([[1,0,0,0],
+                                              [0,math.cos(orientation[3]),-math.sin(orientation[3]),0],
+                                              [0,math.sin(orientation[3]),math.cos(orientation[3]),0],
+                                              [0,0,0,1]])
+            elif (orientation[1] > 0):
+                # Rotação em y
+                GL.orientation_matrix_camera = np.array([[math.cos(orientation[3]), 0, math.sin(orientation[3]), 0],
+                                               [0, 1, 0, 0],
+                                               [-math.sin(orientation[3]), 0, math.cos(orientation[3]), 0],
+                                               [0, 0, 0, 1]])
+            else:
+                # Rotação em z     
+                GL.orientation_matrix_camera = np.array([[math.cos(orientation[3]),-math.sin(orientation[3]),0,0],
+                                               [math.sin(orientation[3]), math.cos(orientation[3]), 0, 0],
+                                               [0, 0, 1, 0],
+                                               [0, 0, 0, 1]])
 
     @staticmethod
     # TODO 2
