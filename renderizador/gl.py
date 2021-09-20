@@ -109,7 +109,6 @@ class GL:
         if (orientation % 2 == 0):
             x1, x2, x3 = vertices[0][0][0], vertices[1][0][0], vertices[2][0][0]
             y1, y2, y3 = vertices[0][1][0], vertices[1][1][0], vertices[2][1][0]
-
         else:
             # Inverte a ordem dos pontos
             x1, x2, x3 = vertices[2][0][0], vertices[1][0][0], vertices[0][0][0]
@@ -249,19 +248,22 @@ class GL:
 
         pontos = GL.pointsToScreen(point)
 
-        # O print abaixo é só para vocês verificarem o funcionamento, DEVE SER REMOVIDO.
-        print("TriangleStripSet : pontos = {0} ".format(point), end='')
-        for i, strip in enumerate(stripCount):
-            print("strip[{0}] = {1} ".format(i, strip), end='')
-        print("")
-        print("TriangleStripSet : colors = {0}".format(colors)) # imprime no terminal as cores
-
+        orientation = 2
+        for i in range(stripCount[0]):
+            
+            for x in range(GL.width):
+                for y in range(GL.height):
+                    if (i+3 > len(pontos)):
+                        break
+                    else:
+                        GL.inside(pontos[i:i+3], [x, y], colors, orientation)
+            orientation += 1
+                    
         # Exemplo de desenho de um pixel branco na coordenada 10, 10
         # gpu.GPU.draw_pixels([10, 10], gpu.GPU.RGB8, [255, 255, 255])  # altera pixel
 
     @staticmethod
     def indexedTriangleStripSet(point, index, colors):
-        # TODO
         """Função usada para renderizar IndexedTriangleStripSet."""
         # A função indexedTriangleStripSet é usada para desenhar tiras de triângulos
         # interconectados, você receberá as coordenadas dos pontos no parâmetro point, esses
@@ -276,9 +278,8 @@ class GL:
         # todos no sentido horário ou todos no sentido anti-horário, conforme especificado.
 
         pontos = GL.pointsToScreen(point)
-
         orientation = 1
-        for i in range(len(index)):
+        for i in index:
             if (index[i+2] < 0):
                 break
             orientation += 1
@@ -340,6 +341,7 @@ class GL:
             print("\t Matriz com image = {0}".format(image))
             print("\t Dimensões da image = {0}".format(image.shape))
         print("IndexedFaceSet : colors = {0}".format(colors))  # imprime no terminal as cores
+
 
         # Exemplo de desenho de um pixel branco na coordenada 10, 10
         gpu.GPU.draw_pixels([10, 10], gpu.GPU.RGB8, [255, 255, 255])  # altera pixel
