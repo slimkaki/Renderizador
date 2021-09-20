@@ -233,7 +233,6 @@ class GL:
 
     @staticmethod
     def triangleStripSet(point, stripCount, colors):
-        # TODO
         """Função usada para renderizar TriangleStripSet."""
         # A função triangleStripSet é usada para desenhar tiras de triângulos interconectados,
         # você receberá as coordenadas dos pontos no parâmetro point, esses pontos são uma
@@ -250,7 +249,6 @@ class GL:
 
         orientation = 2
         for i in range(stripCount[0]):
-            
             for x in range(GL.width):
                 for y in range(GL.height):
                     if (i+3 > len(pontos)):
@@ -258,9 +256,6 @@ class GL:
                     else:
                         GL.inside(pontos[i:i+3], [x, y], colors, orientation)
             orientation += 1
-                    
-        # Exemplo de desenho de um pixel branco na coordenada 10, 10
-        # gpu.GPU.draw_pixels([10, 10], gpu.GPU.RGB8, [255, 255, 255])  # altera pixel
 
     @staticmethod
     def indexedTriangleStripSet(point, index, colors):
@@ -293,16 +288,43 @@ class GL:
         # A função box é usada para desenhar paralelepípedos na cena. O Box é centrada no
         # (0, 0, 0) no sistema de coordenadas local e alinhado com os eixos de coordenadas
         # locais. O argumento size especifica as extensões da caixa ao longo dos eixos X, Y
-        # e Z, respectivamente, e cada valor do tamanho deve ser maior que zero. Para desenha
+        # e Z, respectivamente, e cada valor do tamanho deve ser maior que zero. Para desenhar
         # essa caixa você vai provavelmente querer tesselar ela em triângulos, para isso
         # encontre os vértices e defina os triângulos.
 
         # O print abaixo é só para vocês verificarem o funcionamento, DEVE SER REMOVIDO.
         print("Box : size = {0}".format(size)) # imprime no terminal pontos
         print("Box : colors = {0}".format(colors)) # imprime no terminal as cores
+        
+        # points = []
+        # x, y = [1, -1], [1, -1]
+        # for face in range(6):
+        #     for i in x:
+        #         for j in y:
+        #             points.append(i*size[0]/2)
+        #             points.append(j*size[1]/2)
+        #             points.append(size[2]/2)
 
+
+        points = [-size[0]/2, -size[1]/2, size[2]/2,
+                  -size[0]/2,  size[1]/2, size[2]/2,
+                   size[0]/2, -size[1]/2, size[2]/2,
+                   size[0]/2,  size[1]/2, size[2]/2,
+                   -size[0]/2, -size[1]/2, size[2]/2,
+                  -size[0]/2,  size[1]/2, size[2]/2,
+                   size[0]/2, -size[1]/2, size[2]/2,
+                   size[0]/2,  size[1]/2, size[2]/2]
+        pontos = GL.pointsToScreen(points)
+        orientation = 1
+        for i in range(len(points)):
+            if (i + 2 > len(points)):
+                break
+            for x in range(GL.width):
+                for y in range(GL.height):
+                    GL.inside(pontos[i:i+3], [x, y], colors, orientation)
+            orientation += 1
         # Exemplo de desenho de um pixel branco na coordenada 10, 10
-        gpu.GPU.draw_pixels([10, 10], gpu.GPU.RGB8, [255, 255, 255])  # altera pixel
+        # gpu.GPU.draw_pixels([10, 10], gpu.GPU.RGB8, [255, 255, 255])  # altera pixel
 
     @staticmethod
     def indexedFaceSet(coord, coordIndex, colorPerVertex, color, colorIndex,
