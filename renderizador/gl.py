@@ -291,38 +291,48 @@ class GL:
         # e Z, respectivamente, e cada valor do tamanho deve ser maior que zero. Para desenhar
         # essa caixa você vai provavelmente querer tesselar ela em triângulos, para isso
         # encontre os vértices e defina os triângulos.
-
-        # O print abaixo é só para vocês verificarem o funcionamento, DEVE SER REMOVIDO.
-        print("Box : size = {0}".format(size)) # imprime no terminal pontos
-        print("Box : colors = {0}".format(colors)) # imprime no terminal as cores
         
-        # points = []
-        # x, y = [1, -1], [1, -1]
-        # for face in range(6):
-        #     for i in x:
-        #         for j in y:
-        #             points.append(i*size[0]/2)
-        #             points.append(j*size[1]/2)
-        #             points.append(size[2]/2)
+        # Escrevendo os pontos em uma lista
+        # (Escalonamos os pontos para ter uma imagem maior e mais fácil de visualizar)
+        points = [-size[0]*5-15, -size[1]*5,  size[2]*5, # P1 = (-1, -1, 1)
+                   size[0]*5-15, -size[1]*5,  size[2]*5, # P2 = (1, -1, 1)
+                   size[0]*5-15,  size[1]*5,  size[2]*5, # P3 = (1, 1, 1)
+                  -size[0]*5-15,  size[1]*5,  size[2]*5, # P4 = (-1, 1, 1)
+                  -size[0]*5-15,  size[1]*5, -size[2]*5, # P5 = (-1, 1, -1)
+                   size[0]*5-15,  size[1]*5, -size[2]*5, # P6 = (1, 1, -1)
+                  -size[0]*5-15, -size[1]*5, -size[2]*5, # P7 = (-1, -1, -1)
+                   size[0]*5-15, -size[1]*5, -size[2]*5] # P8 = (1, -1, -1)
 
-
-        points = [-size[0]/2, -size[1]/2, size[2]/2,
-                  -size[0]/2,  size[1]/2, size[2]/2,
-                   size[0]/2, -size[1]/2, size[2]/2,
-                   size[0]/2,  size[1]/2, size[2]/2,
-                   -size[0]/2, -size[1]/2, size[2]/2,
-                  -size[0]/2,  size[1]/2, size[2]/2,
-                   size[0]/2, -size[1]/2, size[2]/2,
-                   size[0]/2,  size[1]/2, size[2]/2]
         pontos = GL.pointsToScreen(points)
-        orientation = 1
-        for i in range(len(points)):
-            if (i + 2 > len(points)):
-                break
+
+        valid_triangles = [[pontos[0], pontos[1], pontos[2]], # 1  -> frontal
+                            [pontos[2], pontos[3], pontos[0]], # 2  -> frontal
+                            [pontos[3], pontos[2], pontos[5]], # 7  -> superior
+                            [pontos[5], pontos[4], pontos[3]], # 8  -> superior
+                            [pontos[1], pontos[7], pontos[5]], # 11 -> direita
+                            [pontos[5], pontos[2], pontos[1]],  # 12 -> direita
+                            [pontos[4], pontos[5], pontos[6]], # 9 -> Nao aparece
+                            [pontos[5], pontos[6], pontos[7]], # 10 -> Nao aparece
+                            [pontos[6], pontos[4], pontos[0]], # 3 -> Nao aparece
+                            [pontos[4], pontos[3], pontos[0]], # 4 -> Nao aparece
+                            [pontos[7], pontos[1], pontos[0]], # 5 -> Nao aparece
+                            [pontos[7], pontos[6], pontos[0]] # 6 -> Nao Aparece
+                          ]       
+        orientation = 2
+        print(f"Temos um total de {len(valid_triangles)} triangulos")
+        for triangulo in range(0, len(valid_triangles), 2):
             for x in range(GL.width):
                 for y in range(GL.height):
-                    GL.inside(pontos[i:i+3], [x, y], colors, orientation)
+                    GL.inside(valid_triangles[triangulo], [x, y], colors, orientation)
+                    GL.inside(valid_triangles[triangulo+1], [x, y], colors, orientation)
             orientation += 1
+        # for i in range(0, len(pontos), 2):
+        #     if (i + 3 > len(pontos)):
+        #         break
+        #     for x in range(GL.width):
+        #         for y in range(GL.height):
+        #             GL.inside(pontos[i:i+3], [x, y], colors, orientation)
+        #     orientation += 1
         # Exemplo de desenho de um pixel branco na coordenada 10, 10
         # gpu.GPU.draw_pixels([10, 10], gpu.GPU.RGB8, [255, 255, 255])  # altera pixel
 
