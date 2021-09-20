@@ -53,7 +53,7 @@ class GL:
         GL.world_matrix = np.matmul(np.matmul(GL.translation_matrix,GL.rotation_matrix), GL.scale_matrix) 
         
         # Matriz de LookAt -> Camera 
-        GL.lookAt = np.matmul(np.linalg.inv(GL.translation_matrix_camera), np.linalg.inv(GL.orientation_matrix_camera)) # translation do ponto usado errado
+        GL.lookAt = np.matmul(np.linalg.inv(GL.orientation_matrix_camera), np.linalg.inv(GL.translation_matrix_camera)) # translation do ponto usado errado
 
         for i in range(0, len(points), 3):
             p = np.array([[points[i]],
@@ -141,7 +141,7 @@ class GL:
         # câmera virtual. Use esses dados para poder calcular e criar a matriz de projeção
         # perspectiva para poder aplicar nos pontos dos objetos geométricos.
 
-        # Calculando o FOV em y
+        # Calculando o FOV em y. 
         fovy = 2*math.atan(math.tan(fieldOfView/2)*GL.height/math.sqrt(GL.height**2 + GL.width**2))
         
         # parametrizando a visao perspectiva
@@ -294,14 +294,14 @@ class GL:
         
         # Escrevendo os pontos em uma lista
         # (Escalonamos os pontos para ter uma imagem maior e mais fácil de visualizar)
-        points = [-size[0]*5-15, -size[1]*5,  size[2]*5, # P1 = (-1, -1, 1)
-                   size[0]*5-15, -size[1]*5,  size[2]*5, # P2 = (1, -1, 1)
-                   size[0]*5-15,  size[1]*5,  size[2]*5, # P3 = (1, 1, 1)
-                  -size[0]*5-15,  size[1]*5,  size[2]*5, # P4 = (-1, 1, 1)
-                  -size[0]*5-15,  size[1]*5, -size[2]*5, # P5 = (-1, 1, -1)
-                   size[0]*5-15,  size[1]*5, -size[2]*5, # P6 = (1, 1, -1)
-                  -size[0]*5-15, -size[1]*5, -size[2]*5, # P7 = (-1, -1, -1)
-                   size[0]*5-15, -size[1]*5, -size[2]*5] # P8 = (1, -1, -1)
+        points = [-size[0], -size[1],  size[2], # P1 = (-1, -1, 1)
+                   size[0], -size[1],  size[2], # P2 = (1, -1, 1)
+                   size[0],  size[1],  size[2], # P3 = (1, 1, 1)
+                  -size[0],  size[1],  size[2], # P4 = (-1, 1, 1)
+                  -size[0],  size[1], -size[2], # P5 = (-1, 1, -1)
+                   size[0],  size[1], -size[2], # P6 = (1, 1, -1)
+                  -size[0], -size[1], -size[2], # P7 = (-1, -1, -1)
+                   size[0], -size[1], -size[2]] # P8 = (1, -1, -1)
 
         pontos = GL.pointsToScreen(points)
 
@@ -319,22 +319,12 @@ class GL:
                             [pontos[7], pontos[6], pontos[0]] # 6 -> Nao Aparece
                           ]       
         orientation = 2
-        print(f"Temos um total de {len(valid_triangles)} triangulos")
         for triangulo in range(0, len(valid_triangles), 2):
             for x in range(GL.width):
                 for y in range(GL.height):
                     GL.inside(valid_triangles[triangulo], [x, y], colors, orientation)
                     GL.inside(valid_triangles[triangulo+1], [x, y], colors, orientation)
             orientation += 1
-        # for i in range(0, len(pontos), 2):
-        #     if (i + 3 > len(pontos)):
-        #         break
-        #     for x in range(GL.width):
-        #         for y in range(GL.height):
-        #             GL.inside(pontos[i:i+3], [x, y], colors, orientation)
-        #     orientation += 1
-        # Exemplo de desenho de um pixel branco na coordenada 10, 10
-        # gpu.GPU.draw_pixels([10, 10], gpu.GPU.RGB8, [255, 255, 255])  # altera pixel
 
     @staticmethod
     def indexedFaceSet(coord, coordIndex, colorPerVertex, color, colorIndex,
