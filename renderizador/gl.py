@@ -97,7 +97,7 @@ class GL:
                     GL.inside(pontos[tri:tri+3], [i, j], colors)
         
     @staticmethod
-    def inside(vertices, ponto, colors, orientation = 2):
+    def inside(vertices, ponto, colors, orientation = 2, colorPerVertex = False, cores = None):
         """Função que pinta os pixels delimitados pelos vértices, formando os triângulos"""
 
         r = int(colors["diffuseColor"][0]*255)
@@ -130,12 +130,26 @@ class GL:
         L1 = (x - x2)*dY1 - (y - y2)*dX1
         L2 = (x - x3)*dY2 - (y - y3)*dX2
 
-        if (L0 >= 0 and L1 >= 0 and L2 >= 0):    
-            gpu.GPU.set_pixel(int(x), int(y), r, g, b)
+        if (L0 >= 0 and L1 >= 0 and L2 >= 0):
+            if colorPerVertex:
+                alpha = (-(x - x2)*(y3 - y2) + (y - y2)*(x3 - x2)) / (-(x1 - x2)*(y3 - y2) + (y1 - y2)*(x3 - x2))
+                
+                beta  = (-(x - x3)*(y1 - y3) + (y - y3)*(x1 - x3)) / (-(x2 - x3)*(y1 - y3) + (y2 - y3)*(x1 - x3))
+                
+                gamma = 1 - (alpha + beta)
+                # soma = alpha + beta + gamma
+                
+                R = (cores[0][0] + cores[1][0] + cores[2][0]) * 255 * alpha
+                G = (cores[0][1] + cores[1][1] + cores[2][1]) * 255 * beta
+                B = (cores[0][2] + cores[1][2] + cores[2][2]) * 255 * gamma
+                
+
+                gpu.GPU.draw_pixels(int(x), int(y), R, G, B)
+            else:
+                gpu.GPU.draw_pixels(int(x), int(y), r, g, b)
 
     @staticmethod
     def viewpoint(position, orientation, fieldOfView):
-        # TODO 1
         """Função usada para renderizar (na verdade coletar os dados) de Viewpoint."""
         # Na função de viewpoint você receberá a posição, orientação e campo de visão da
         # câmera virtual. Use esses dados para poder calcular e criar a matriz de projeção
@@ -178,7 +192,6 @@ class GL:
                                                [0, 0, 0, 1]])
 
     @staticmethod
-    # TODO 2
     def transform_in(translation, scale, rotation):
         """Função usada para renderizar (na verdade coletar os dados) de Transform."""
         # A função transform_in será chamada quando se entrar em um nó X3D do tipo Transform
@@ -190,16 +203,22 @@ class GL:
         # modelos do mundo em alguma estrutura de pilha.
         # scale rot transl
 
+        GL.stack = []
+
         if translation:
             GL.translation_matrix = np.array([[1, 0, 0, translation[0]],
                                               [0, 1, 0, translation[1]],
                                               [0, 0, 1, translation[2]],
                                               [0, 0, 0, 1]])
+            GL.stack.append(GL.translation_matrix)
+            
         if scale:
             GL.scale_matrix = np.array([[scale[0],0,0,0],
                                         [0,scale[1],0,0],
                                         [0,0,scale[2],0],
                                         [0,0,0,1]])
+            GL.stack.append(GL.scale_matrix)
+            
         if rotation:
             if (rotation[0] > 0):
                 # Rotação em x
@@ -219,7 +238,8 @@ class GL:
                                                [math.sin(rotation[3]), math.cos(rotation[3]), 0, 0],
                                                [0, 0, 1, 0],
                                                [0, 0, 0, 1]])
-
+            GL.stack.append(GL.rotation_matrix)
+            
     @staticmethod
     def transform_out():
         """Função usada para renderizar (na verdade coletar os dados) de Transform."""
@@ -340,7 +360,7 @@ class GL:
         # em coordIndex, o valor -1 indica que a lista acabou.
         # A ordem de conexão será de 3 em 3 pulando um índice. Por exemplo: o
         # primeiro triângulo será com os vértices 0, 1 e 2, depois serão os vértices 1, 2 e 3,
-        # depois 2, 3 e 4, e assim por diante.
+        # depois 2, 3 e 4, e assim por diante. 
         # Adicionalmente essa implementação do IndexedFace aceita cores por vértices, assim
         # se a flag colorPerVertex estiver habilitada, os vértices também possuirão cores
         # que servem para definir a cor interna dos poligonos, para isso faça um cálculo
@@ -364,7 +384,43 @@ class GL:
             print("\t Dimensões da image = {0}".format(image.shape))
         print("IndexedFaceSet : colors = {0}".format(colors))  # imprime no terminal as cores
 
+        # Dividir os pontos em vertices 
+        vertex = GL.pointsToScreen(coord)
+        triangle, trueColor = [], []
+        print(f"todos os vertices: {vertex}")
+        
+        if colorPerVertex:
+            cores = []
+            for c in range(0, len(color), 3):
+                cores.append([color[c], color[c+1], color[c+2]])
+            print(f"cores = {cores}")
+            for vert, c in zip(coordIndex, colorIndex):
+                print(f"agora no zip: vert = {vert}; c = {c}")
+                if vert < 0 or c < 0:
+                    
+                    print(f"trueColor = {trueColor}")
+                    print(f"triangle = {triangle}")
+                    for x in range(GL.width):
+                        for y in range(GL.height):
+                            
+                            GL.inside(triangle, [x, y], colors, colorPerVertex = colorPerVertex, cores = trueColor)
+                    triangle, trueColor = [], []
+                    continue
+                trueColor.append(cores[c])
+                triangle.append(vertex[vert])
+        else:
+            for vert in coordIndex:
+                if vert < 0:
+                    for x in range(GL.width):
+                        for y in range(GL.height):
+                            GL.inside(triangle, [x, y], colors)
+                    triangle = []
+                    continue
+                triangle.append(vertex[vert])
 
+        
+
+            
         # Exemplo de desenho de um pixel branco na coordenada 10, 10
         gpu.GPU.draw_pixels([10, 10], gpu.GPU.RGB8, [255, 255, 255])  # altera pixel
 
