@@ -97,7 +97,7 @@ class GL:
                     GL.inside(pontos[tri:tri+3], [i, j], colors)
         
     @staticmethod
-    def inside(vertices, ponto, colors, orientation = 2, colorPerVertex = False, cores = None):
+    def inside(vertices, ponto, colors, orientation = 2, colorPerVertex = False, cores = None, texture=False, texVertex=None, img = None):
         """Função que pinta os pixels delimitados pelos vértices, formando os triângulos"""
 
         r = int(colors["diffuseColor"][0]*255)
@@ -137,16 +137,24 @@ class GL:
                 beta  = (-(x - x3)*(y1 - y3) + (y - y3)*(x1 - x3)) / (-(x2 - x3)*(y1 - y3) + (y2 - y3)*(x1 - x3))
                 
                 gamma = 1 - (alpha + beta)
-                # soma = alpha + beta + gamma
+                # soma = alpha + beta + gamma # Deve ser sempre igual a 1
                 
                 R = (cores[0][0] + cores[1][0] + cores[2][0]) * 255 * alpha
                 G = (cores[0][1] + cores[1][1] + cores[2][1]) * 255 * beta
                 B = (cores[0][2] + cores[1][2] + cores[2][2]) * 255 * gamma
                 
 
-                gpu.GPU.draw_pixels(int(x), int(y), R, G, B)
+                # gpu.GPU.set_pixel(int(x), int(y), R, G, B)
+                gpu.GPU.draw_pixels([int(x), int(y)], gpu.GPU.RGB8, [R, G, B])  # altera pixel
+            elif texture:
+                # Pintar a textura
+                R, G, B, a = img[int(x)][int(y)]
+                
+                # gpu.GPU.set_pixel(int(x), int(y), R, G, B)
+                gpu.GPU.draw_pixels([int(x), int(y)], gpu.GPU.RGB8, [R, G, B])  # altera pixel
             else:
-                gpu.GPU.draw_pixels(int(x), int(y), r, g, b)
+                # gpu.GPU.set_pixel(int(x), int(y), r, g, b)
+                gpu.GPU.draw_pixels([int(x), int(y)], gpu.GPU.RGB8, [r, g, b])  # altera pixel
 
     @staticmethod
     def viewpoint(position, orientation, fieldOfView):
@@ -391,7 +399,7 @@ class GL:
         
         if colorPerVertex:
             cores = []
-            for c in range(0, len(color), 3):
+            for c in range(0, len(color), 3): 
                 cores.append([color[c], color[c+1], color[c+2]])
             print(f"cores = {cores}")
             for vert, c in zip(coordIndex, colorIndex):
@@ -408,9 +416,26 @@ class GL:
                     continue
                 trueColor.append(cores[c])
                 triangle.append(vertex[vert])
+        elif (texCoord and texCoordIndex):
+            texturePoints = []
+            for p in range(0, len(texCoord), 2):
+                texturePoints.append([texCoord[p], texCoord[p+1]])                
+            print("texture Points:", texturePoints)
+            texTriangle = []
+            for vert, tex in zip(coordIndex, texCoordIndex):
+                if vert < 0:
+                    # ori += 1
+                    for x in range(GL.width):
+                        for y in range(GL.height):
+                            GL.inside(triangle, [x, y], colors, texture=True, texVertex=texTriangle, img=image)
+                    triangle, texTriangle = [], []
+                    continue
+                triangle.append(vertex[vert])
+                texTriangle.append(texturePoints[tex])
         else:
             for vert in coordIndex:
                 if vert < 0:
+                    # ori += 1
                     for x in range(GL.width):
                         for y in range(GL.height):
                             GL.inside(triangle, [x, y], colors)
