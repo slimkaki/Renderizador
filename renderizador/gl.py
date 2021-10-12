@@ -139,16 +139,17 @@ class GL:
                 gamma = 1 - (alpha + beta)
                 # soma = alpha + beta + gamma # Deve ser sempre igual a 1
                 
-                R = (cores[0][0] + cores[1][0] + cores[2][0]) * 255 * alpha
-                G = (cores[0][1] + cores[1][1] + cores[2][1]) * 255 * beta
-                B = (cores[0][2] + cores[1][2] + cores[2][2]) * 255 * gamma
+                R = (cores[0][0] * alpha + cores[1][0] * beta + cores[2][0] * gamma) * 255
+                G = (cores[0][1] * alpha + cores[1][1] * beta + cores[2][1] * gamma) * 255
+                B = (cores[0][2] * alpha + cores[1][2] * beta + cores[2][2] * gamma) * 255
                 
-
                 # gpu.GPU.set_pixel(int(x), int(y), R, G, B)
                 gpu.GPU.draw_pixels([int(x), int(y)], gpu.GPU.RGB8, [R, G, B])  # altera pixel
             elif texture:
                 # Pintar a textura
-                R, G, B, a = img[int(x)][int(y)]
+                new_x = (img.shape[0]/GL.width)*x
+                new_y = (img.shape[1]/GL.height)*y
+                R, G, B, a = img[int(new_y)][int(new_x)]
                 
                 # gpu.GPU.set_pixel(int(x), int(y), R, G, B)
                 gpu.GPU.draw_pixels([int(x), int(y)], gpu.GPU.RGB8, [R, G, B])  # altera pixel
@@ -410,7 +411,6 @@ class GL:
                     print(f"triangle = {triangle}")
                     for x in range(GL.width):
                         for y in range(GL.height):
-                            
                             GL.inside(triangle, [x, y], colors, colorPerVertex = colorPerVertex, cores = trueColor)
                     triangle, trueColor = [], []
                     continue
@@ -424,7 +424,6 @@ class GL:
             texTriangle = []
             for vert, tex in zip(coordIndex, texCoordIndex):
                 if vert < 0:
-                    # ori += 1
                     for x in range(GL.width):
                         for y in range(GL.height):
                             GL.inside(triangle, [x, y], colors, texture=True, texVertex=texTriangle, img=image)
