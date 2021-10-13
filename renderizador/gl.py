@@ -150,11 +150,11 @@ class GL:
 
             if texture:
                 # Pintar a textura
-                tex_x = (x1*alpha + x2*beta + x3*gamma)*(img.shape[0]/GL.width)
-                tex_y = (y1*alpha + y2*beta + y3*gamma)*(img.shape[1]/GL.height)
+                tex_x = (texVertex[0][0]*alpha + texVertex[1][0]*beta + texVertex[2][0]*gamma)*img.shape[0]
+                tex_y = (texVertex[0][1]*alpha + texVertex[1][1]*beta + texVertex[2][1]*gamma)*img.shape[1]
                 # print(f"new_x = {new_x} e new_y = {new_y}")
                 
-                R, G, B, a = img[int(tex_y)][int(tex_x)]
+                R, G, B, a = img[int(-tex_y)][int(tex_x)]
 
             elif colorPerVertex and cores != None:
                 R = (cores[0][0] * alpha + cores[1][0] * beta + cores[2][0] * gamma) * 255
@@ -392,19 +392,8 @@ class GL:
         # implementadado um método para a leitura de imagens.
 
         # Os prints abaixo são só para vocês verificarem o funcionamento, DEVE SER REMOVIDO.
-        print("IndexedFaceSet : ")
-        if coord:
-            print("\tpontos(x, y, z) = {0}, coordIndex = {1}".format(coord, coordIndex))
-        print("colorPerVertex = {0}".format(colorPerVertex))
-        if colorPerVertex and color and colorIndex:
-            print("\tcores(r, g, b) = {0}, colorIndex = {1}".format(color, colorIndex))
-        if texCoord and texCoordIndex:
-            print("\tpontos(u, v) = {0}, texCoordIndex = {1}".format(texCoord, texCoordIndex))
         if current_texture:
             image = gpu.GPU.load_texture(current_texture[0])
-            print("\t Matriz com image = {0}".format(image))
-            print("\t Dimensões da image = {0}".format(image.shape))
-        print("IndexedFaceSet : colors = {0}".format(colors))  # imprime no terminal as cores
 
         # Dividir os pontos em vertices 
         vertex = GL.pointsToScreen(coord)
@@ -415,12 +404,9 @@ class GL:
             cores = []
             for c in range(0, len(color), 3): 
                 cores.append([color[c], color[c+1], color[c+2]])
-            print(f"cores = {cores}")
+
             for vert, c in zip(coordIndex, colorIndex):
-                print(f"agora no zip: vert = {vert}; c = {c}")
                 if vert < 0 or c < 0:
-                    print(f"trueColor = {trueColor}")
-                    print(f"triangle = {triangle}")
                     for x in range(GL.width):
                         for y in range(GL.height):
                             GL.inside(triangle, [x, y], colors, colorPerVertex = colorPerVertex, cores = trueColor)
@@ -428,11 +414,11 @@ class GL:
                     continue
                 trueColor.append(cores[c])
                 triangle.append(vertex[vert])
+
         elif (texCoord and texCoordIndex):
             texturePoints = []
             for p in range(0, len(texCoord), 2):
-                texturePoints.append([texCoord[p], texCoord[p+1]])                
-            print("texture Points:", texturePoints)
+                texturePoints.append([texCoord[p], texCoord[p+1]])
             texTriangle = []
             for vert, tex in zip(coordIndex, texCoordIndex):
                 if vert < 0:

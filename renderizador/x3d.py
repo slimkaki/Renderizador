@@ -552,6 +552,7 @@ class Appearance(X3DAppearanceNode):
         if self.texture:
             self.texture.render()
 
+
 class Shape(X3DShapeNode):
     """Define aparência e geometria, que são usados para criar objetos renderizados."""
 
