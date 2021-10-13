@@ -53,14 +53,12 @@ class GL:
 
         # Matriz de Mundo
         GL.world_matrix = np.matmul(np.matmul(GL.translation_matrix, GL.rotation_matrix), GL.scale_matrix)
-        
-        GL.stack.append(GL.world_matrix)
 
-        # for transf in range(0, len(GL.stack)-1):
         if (len(GL.stack) > 1):
-            GL.world_matrix = np.matmul(GL.stack[len(GL.stack)-2], GL.world_matrix)
-            # print(f"GL.stack = {len(GL.stack)}")
-        
+            GL.world_matrix = np.matmul(GL.stack[-1], GL.world_matrix)
+
+        GL.stack.append(GL.world_matrix)
+                                                                                                                                                                                                                                                                                                                                                                                       
         # Matriz de LookAt -> Camera 
         GL.lookAt = np.matmul(np.linalg.inv(GL.orientation_matrix_camera), np.linalg.inv(GL.translation_matrix_camera)) # translation do ponto usado errado
 
