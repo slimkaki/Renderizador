@@ -37,6 +37,7 @@ class GL:
                                      [        0,                    0,    1,          0],
                                      [        0,                    0,    0,          1]])
         GL.zBuffer = [ [ None for x in range(GL.width)] for y in range(GL.height) ]
+        GL.stack = []
     
     @staticmethod
     def pointsToScreen(points):
@@ -51,7 +52,14 @@ class GL:
         #   Mundo -> LookAt -> Perspectiva -> divide por w -> screen -> rasteriza   
 
         # Matriz de Mundo
-        GL.world_matrix = np.matmul(np.matmul(GL.translation_matrix,GL.rotation_matrix), GL.scale_matrix) 
+        GL.world_matrix = np.matmul(np.matmul(GL.translation_matrix, GL.rotation_matrix), GL.scale_matrix)
+        
+        GL.stack.append(GL.world_matrix)
+
+        # for transf in range(0, len(GL.stack)-1):
+        if (len(GL.stack) > 1):
+            GL.world_matrix = np.matmul(GL.stack[len(GL.stack)-2], GL.world_matrix)
+            # print(f"GL.stack = {len(GL.stack)}")
         
         # Matriz de LookAt -> Camera 
         GL.lookAt = np.matmul(np.linalg.inv(GL.orientation_matrix_camera), np.linalg.inv(GL.translation_matrix_camera)) # translation do ponto usado errado
@@ -193,6 +201,12 @@ class GL:
                                                [0, 1, 0, position[1]],
                                                [0, 0, 1, position[2]],
                                                [0, 0, 0, 1]])
+        # print(f"[viewpoint] Recebendo:\n\tposition = {position}\n\torientation = {orientation}\n\tfieldOfView = {fieldOfView}\n")
+        # w = 
+        # GL.orientation_matrix_camera = np.array([[ux, vx, -wx],
+        #                                          [uy, vy, -wy],
+        #                                          [uz, vz, -wz],
+        #                                          [0, 0, 0, 1]])
         if orientation:
             if (orientation[0] > 0):
                 # Rotação em x
@@ -225,21 +239,12 @@ class GL:
         # modelos do mundo em alguma estrutura de pilha.
         # scale rot transl
 
-        GL.stack = []
-
         if translation:
             GL.translation_matrix = np.array([[1, 0, 0, translation[0]],
                                               [0, 1, 0, translation[1]],
                                               [0, 0, 1, translation[2]],
                                               [0, 0, 0, 1]])
-            GL.stack.append(GL.translation_matrix)
-            
-        if scale:
-            GL.scale_matrix = np.array([[scale[0],0,0,0],
-                                        [0,scale[1],0,0],
-                                        [0,0,scale[2],0],
-                                        [0,0,0,1]])
-            GL.stack.append(GL.scale_matrix)
+            # GL.stack.append(GL.translation_matrix)
             
         if rotation:
             if (rotation[0] > 0):
@@ -260,7 +265,14 @@ class GL:
                                                [math.sin(rotation[3]), math.cos(rotation[3]), 0, 0],
                                                [0, 0, 1, 0],
                                                [0, 0, 0, 1]])
-            GL.stack.append(GL.rotation_matrix)
+            # GL.stack.append(GL.rotation_matrix)
+
+        if scale:
+            GL.scale_matrix = np.array([[scale[0],0,0,0],
+                                        [0,scale[1],0,0],
+                                        [0,0,scale[2],0],
+                                        [0,0,0,1]])
+            # GL.stack.append(GL.scale_matrix)
             
     @staticmethod
     def transform_out():
@@ -272,6 +284,7 @@ class GL:
 
         # O print abaixo é só para vocês verificarem o funcionamento, DEVE SER REMOVIDO.
         print("Saindo de Transform")
+        GL.stack.pop()
 
     @staticmethod
     def triangleStripSet(point, stripCount, colors):
