@@ -36,6 +36,7 @@ class GL:
                                      [        0,         - height / 2,    0, height / 2],
                                      [        0,                    0,    1,          0],
                                      [        0,                    0,    0,          1]])
+        GL.zBuffer = [ [ None for x in range(GL.width)] for y in range(GL.height) ]
     
     @staticmethod
     def pointsToScreen(points):
@@ -100,19 +101,23 @@ class GL:
     def inside(vertices, ponto, colors, orientation = 2, colorPerVertex = False, cores = None, texture=False, texVertex=None, img = None):
         """Função que pinta os pixels delimitados pelos vértices, formando os triângulos"""
 
-        r = int(colors["diffuseColor"][0]*255)
-        g = int(colors["diffuseColor"][1]*255)
-        b = int(colors["diffuseColor"][2]*255)
+        R = int(colors["diffuseColor"][0]*255)
+        G = int(colors["diffuseColor"][1]*255)
+        B = int(colors["diffuseColor"][2]*255)
 
         x, y = ponto[0], ponto[1]
-        
+
         if (orientation % 2 == 0):
             x1, x2, x3 = vertices[0][0][0], vertices[1][0][0], vertices[2][0][0]
             y1, y2, y3 = vertices[0][1][0], vertices[1][1][0], vertices[2][1][0]
+            if (len(vertices[0]) > 2):
+                z1, z2, z3 = vertices[0][2][0], vertices[1][2][0], vertices[2][2][0]
         else:
             # Inverte a ordem dos pontos
             x1, x2, x3 = vertices[2][0][0], vertices[1][0][0], vertices[0][0][0]
             y1, y2, y3 = vertices[2][1][0], vertices[1][1][0], vertices[0][1][0]
+            if (len(vertices[0]) > 3):
+                z1, z2, z3 = vertices[2][2][0], vertices[1][2][0], vertices[0][2][0]
 
         # P2 - P1
         dX0 = x2 - x1
@@ -131,31 +136,39 @@ class GL:
         L2 = (x - x3)*dY2 - (y - y3)*dX2
 
         if (L0 >= 0 and L1 >= 0 and L2 >= 0):
-            if colorPerVertex:
-                alpha = (-(x - x2)*(y3 - y2) + (y - y2)*(x3 - x2)) / (-(x1 - x2)*(y3 - y2) + (y1 - y2)*(x3 - x2))
+            alpha = (-(x - x2)*(y3 - y2) + (y - y2)*(x3 - x2)) / (-(x1 - x2)*(y3 - y2) + (y1 - y2)*(x3 - x2))
                 
-                beta  = (-(x - x3)*(y1 - y3) + (y - y3)*(x1 - x3)) / (-(x2 - x3)*(y1 - y3) + (y2 - y3)*(x1 - x3))
+            beta  = (-(x - x3)*(y1 - y3) + (y - y3)*(x1 - x3)) / (-(x2 - x3)*(y1 - y3) + (y2 - y3)*(x1 - x3))
+            
+            gamma = 1 - (alpha + beta) # soma = alpha + beta + gamma # Deve ser sempre igual a 1
+
+            if texture:
+                # Pintar a textura
+                tex_x = (x1*alpha + x2*beta + x3*gamma)*(img.shape[0]/GL.width)
+                tex_y = (y1*alpha + y2*beta + y3*gamma)*(img.shape[1]/GL.height)
+                # print(f"new_x = {new_x} e new_y = {new_y}")
                 
-                gamma = 1 - (alpha + beta)
-                # soma = alpha + beta + gamma # Deve ser sempre igual a 1
-                
+                R, G, B, a = img[int(tex_y)][int(tex_x)]
+
+            elif colorPerVertex and cores != None:
                 R = (cores[0][0] * alpha + cores[1][0] * beta + cores[2][0] * gamma) * 255
                 G = (cores[0][1] * alpha + cores[1][1] * beta + cores[2][1] * gamma) * 255
                 B = (cores[0][2] * alpha + cores[1][2] * beta + cores[2][2] * gamma) * 255
                 
-                # gpu.GPU.set_pixel(int(x), int(y), R, G, B)
-                gpu.GPU.draw_pixels([int(x), int(y)], gpu.GPU.RGB8, [R, G, B])  # altera pixel
-            elif texture:
-                # Pintar a textura
-                new_x = (img.shape[0]/GL.width)*x
-                new_y = (img.shape[1]/GL.height)*y
-                R, G, B, a = img[int(new_y)][int(new_x)]
-                
-                # gpu.GPU.set_pixel(int(x), int(y), R, G, B)
-                gpu.GPU.draw_pixels([int(x), int(y)], gpu.GPU.RGB8, [R, G, B])  # altera pixel
+            # gpu.GPU.set_pixel(int(x), int(y), R, G, B)
+            Z = 1 / (alpha*(1/z1) + beta*(1/z2) + gamma*(1/z3))
+            if (GL.zBuffer[int(y)][int(x)] != None):
+                if (Z < GL.zBuffer[int(y)][int(x)]):
+                    GL.zBuffer[int(y)][int(x)] = Z
+                    gpu.GPU.draw_pixels([int(x), int(y)], gpu.GPU.RGB8, [R, G, B])  # altera pixel
             else:
-                # gpu.GPU.set_pixel(int(x), int(y), r, g, b)
-                gpu.GPU.draw_pixels([int(x), int(y)], gpu.GPU.RGB8, [r, g, b])  # altera pixel
+                GL.zBuffer[int(y)][int(x)] = Z
+                gpu.GPU.draw_pixels([int(x), int(y)], gpu.GPU.RGB8, [R, G, B])  # altera pixel
+
+            # print(f"[FUNC INSIDE] GL.zBuffer = {GL.zBuffer}")
+            # if (Z < GL.zBuffer[int(x)][int(y)])
+
+            
 
     @staticmethod
     def viewpoint(position, orientation, fieldOfView):
@@ -396,9 +409,9 @@ class GL:
         # Dividir os pontos em vertices 
         vertex = GL.pointsToScreen(coord)
         triangle, trueColor = [], []
-        print(f"todos os vertices: {vertex}")
+        # print(f"todos os vertices: {vertex}")
         
-        if colorPerVertex:
+        if colorPerVertex and color and colorIndex:
             cores = []
             for c in range(0, len(color), 3): 
                 cores.append([color[c], color[c+1], color[c+2]])
@@ -406,7 +419,6 @@ class GL:
             for vert, c in zip(coordIndex, colorIndex):
                 print(f"agora no zip: vert = {vert}; c = {c}")
                 if vert < 0 or c < 0:
-                    
                     print(f"trueColor = {trueColor}")
                     print(f"triangle = {triangle}")
                     for x in range(GL.width):
@@ -434,7 +446,6 @@ class GL:
         else:
             for vert in coordIndex:
                 if vert < 0:
-                    # ori += 1
                     for x in range(GL.width):
                         for y in range(GL.height):
                             GL.inside(triangle, [x, y], colors)
@@ -442,9 +453,6 @@ class GL:
                     continue
                 triangle.append(vertex[vert])
 
-        
-
-            
         # Exemplo de desenho de um pixel branco na coordenada 10, 10
         gpu.GPU.draw_pixels([10, 10], gpu.GPU.RGB8, [255, 255, 255])  # altera pixel
 
