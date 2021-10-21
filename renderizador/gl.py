@@ -447,13 +447,40 @@ class GL:
         """Função usada para renderizar Esferas."""
         # A função sphere é usada para desenhar esferas na cena. O esfera é centrada no
         # (0, 0, 0) no sistema de coordenadas local. O argumento radius especifica o
-        # raio da esfera que está sendo criada. Para desenha essa esfera você vai
+        # raio da esfera que está sendo criada. Para desenhar essa esfera você vai
         # precisar tesselar ela em triângulos, para isso encontre os vértices e defina
         # os triângulos.
 
         # O print abaixo é só para vocês verificarem o funcionamento, DEVE SER REMOVIDO.
         print("Sphere : radius = {0}".format(radius)) # imprime no terminal o raio da esfera
         print("Sphere : colors = {0}".format(colors)) # imprime no terminal as cores
+
+        points = []
+        center = [0, 0, 0]
+        
+        #paremetric curves
+        # 0 ate 2pi
+        degrees = np.arange(0, 2*math.pi, 0.26) # Mudar o passo -> atualmente aproximação de 15 graus em rad
+
+        # Calcula coordenadas dos pontos a partir do raio
+        for phi in degrees: 
+            for theta in degrees:
+                x = radius * math.cos(theta) * math.sin(phi)
+                y = radius * math.sin(theta) * math.sin(phi)
+                z = radius * math.cos(phi)
+                points.extend((x, y, z))
+        print("points: {0}", points)
+
+        # Trás coordenadas para o mundo da câmera
+        coords = GL.pointsToScreen(points)
+
+        # Agrupa os pontos
+        all_points = []
+        for i in range(0, len(coords), 3):
+            all_points.append([coords[i], coords[i+1], coords[i+2]])
+
+        # Junta os vértices e forma triângulos
+
 
     @staticmethod
     def navigationInfo(headlight):
