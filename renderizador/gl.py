@@ -452,32 +452,67 @@ class GL:
         # os triângulos.
 
         # O print abaixo é só para vocês verificarem o funcionamento, DEVE SER REMOVIDO.
-        print("Sphere : radius = {0}".format(radius)) # imprime no terminal o raio da esfera
-        print("Sphere : colors = {0}".format(colors)) # imprime no terminal as cores
+        # print("Sphere : radius = {0}".format(radius)) # imprime no terminal o raio da esfera
+        # print("Sphere : colors = {0}".format(colors)) # imprime no terminal as cores
 
         points = []
         center = [0, 0, 0]
         
         #paremetric curves
         # 0 ate 2pi
-        degrees = np.arange(0, 2*math.pi, 0.26) # Mudar o passo -> atualmente aproximação de 15 graus em rad
+        degrees = np.arange(0, 2*math.pi, 2*math.pi/5) # Mudar o passo -> atualmente aproximação de 15 graus em rad
 
         # Calcula coordenadas dos pontos a partir do raio
-        for phi in degrees: 
+        for phi in degrees:
+            faixa = []
+            
             for theta in degrees:
                 x = radius * math.cos(theta) * math.sin(phi)
                 y = radius * math.sin(theta) * math.sin(phi)
                 z = radius * math.cos(phi)
-                points.extend((x, y, z))
-        print("points: {0}", points)
+                faixa.extend((x, y, z))
+            points.append(faixa)
+        # print("points: {0}", faixa)
+        # points = [[x1,y1,z1,...,...], [x,y,z,...], ...]
+        #[(x1,y1,z1),(x2,y2,z2)]
+        coords = []
+        for faixa in points:
+            # print(f"faixa = {faixa}")
+            coords.append(GL.pointsToScreen(faixa))
+        
+        vertices = []
+        for faixa in range(len(coords)):
+            for tri in range(0, len(coords), 3):
+                vertices.append([coords[faixa][tri-3], coords[faixa][tri-2], coords[faixa][tri-1]])
+        # print(f"vertices{vertices}")
+        #print(f"coords: {coords}")
+        # triangulos = [[vertice1, vertice2, vertice3], [...], ...]
+        for f in range(len(vertices)-1):
+            for v in range(len(vertices[f])-1):
+                print(f"len     : {len(vertices)} ; {len(vertices[f])}")
+                print(f"indices : {f}, {v}\n")
+                for x in range(GL.width):
+                    for y in range(GL.height):
+                        GL.inside([vertices[f][v], vertices[f+1][v], vertices[f+1][v-1]], (x,y), colors)
+                        GL.inside([vertices[f][v], vertices[f][v+1], vertices[f+1][v]], (x,y), colors)
+            #break
+
+        # print(f"Triangulo = {triangulos}")
+
 
         # Trás coordenadas para o mundo da câmera
-        coords = GL.pointsToScreen(points)
 
         # Agrupa os pontos
         all_points = []
-        for i in range(0, len(coords), 3):
+        for i in range(0, len(coords)-2, 3):
             all_points.append([coords[i], coords[i+1], coords[i+2]])
+
+        # tri = Delaunay(all_points) # Função do scipy.spatial
+        # for triangle in tri:
+        #     for x in range(GL.width):
+        #         for y in range(GL.height):
+        #             GL.inside(triangle, [x, y], colors)
+
 
         # Junta os vértices e forma triângulos
 
