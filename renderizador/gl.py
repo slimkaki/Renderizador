@@ -1,3 +1,4 @@
+
 #!/usr/bin/env python3
 # -*- coding: UTF-8 -*-
 
@@ -46,6 +47,7 @@ class GL:
         # que cada ponto é uma matriz com x, y, z, w
 
         # Lista para salvar os pontos
+        # print(f"[pointsToScreen] points : {points}")
         pontos = [] 
 
         # Ordem:
@@ -452,70 +454,99 @@ class GL:
         # os triângulos.
 
         # O print abaixo é só para vocês verificarem o funcionamento, DEVE SER REMOVIDO.
-        # print("Sphere : radius = {0}".format(radius)) # imprime no terminal o raio da esfera
+        print("Sphere : radius = {0}".format(radius)) # imprime no terminal o raio da esfera
         # print("Sphere : colors = {0}".format(colors)) # imprime no terminal as cores
 
         points = []
-        center = [0, 0, 0]
         
-        #paremetric curves
-        # 0 ate 2pi
-        degrees = np.arange(0, 2*math.pi, 2*math.pi/5) # Mudar o passo -> atualmente aproximação de 15 graus em rad
+        # Step de graus a serem calculados
+        step = math.pi/4
+        degrees_phi = np.arange(0, math.pi+step, step) # Variação dos graus 'phi'
+        degrees_theta = np.arange(0, 2*math.pi+step, step) # Variação dos graus 'theta'
 
-        # Calcula coordenadas dos pontos a partir do raio
-        for phi in degrees:
-            faixa = []
-            
-            for theta in degrees:
+        sizes = [0]
+        # Calculando coordenadas dos pontos a partir do raio e dos graus 'phi' e 'theta'
+        for phi in degrees_phi:
+            faixa= []
+            x_points, y_points, z_points = [], [], []
+            for theta in degrees_theta:
+                # Calcula o ponto (x, y, z)
                 x = radius * math.cos(theta) * math.sin(phi)
-                y = radius * math.sin(theta) * math.sin(phi)
-                z = radius * math.cos(phi)
-                faixa.extend((x, y, z))
-            points.append(faixa)
-        # print("points: {0}", faixa)
-        # points = [[x1,y1,z1,...,...], [x,y,z,...], ...]
-        #[(x1,y1,z1),(x2,y2,z2)]
+                y = radius * math.cos(phi)
+                z = radius * math.sin(theta) * math.sin(phi)
+                if (phi in [0.0, math.pi]):
+                    x_points += [x]
+                    y_points += [y]
+                    z_points += [z]
+                faixa += [x, y, z]
+            if (phi in [0.0, math.pi]):
+                # Achando o ponto médio para fazer o nó da ponta da esfera
+                x = sum(x_points)/(len(x_points))
+                y = sum(y_points)/(len(y_points))
+                z = sum(z_points)/(len(z_points))
+                faixa = [x, y, z]
+            points += faixa
+            sizes += [int(len(points)/3)] # Referencia do número de pontos por faixa
+
+        # Transformando as coordenadas para pontos na tela
         coords = []
-        for faixa in points:
-            # print(f"faixa = {faixa}")
-            coords.append(GL.pointsToScreen(faixa))
+        coords.append(GL.pointsToScreen(points))
+
+        # Ordenando pontos na tela por faixa de valores em y
+        vertex_coords = []
+        for i in range(1, len(sizes)):
+            vertex_coords.append(coords[0][sizes[i-1]:sizes[i]])
         
-        vertices = []
-        for faixa in range(len(coords)):
-            for tri in range(0, len(coords), 3):
-                vertices.append([coords[faixa][tri-3], coords[faixa][tri-2], coords[faixa][tri-1]])
-        # print(f"vertices{vertices}")
-        #print(f"coords: {coords}")
-        # triangulos = [[vertice1, vertice2, vertice3], [...], ...]
-        for f in range(len(vertices)-1):
-            for v in range(len(vertices[f])-1):
-                print(f"len     : {len(vertices)} ; {len(vertices[f])}")
-                print(f"indices : {f}, {v}\n")
-                for x in range(GL.width):
-                    for y in range(GL.height):
-                        GL.inside([vertices[f][v], vertices[f+1][v], vertices[f+1][v-1]], (x,y), colors)
-                        GL.inside([vertices[f][v], vertices[f][v+1], vertices[f+1][v]], (x,y), colors)
-            #break
+        # Desenhando os triângulos na tela
+        for fx in range(len(vertex_coords) - 1):
+            if (len(vertex_coords[fx]) == 1 and fx == 0):
+                # Caso da ponta inicial da esfera
+                for p in range(len(vertex_coords[fx+1])):
+                    # Ordem de conexão dos vértices do triângulo
+                    v = [vertex_coords[fx+1][p-1], vertex_coords[fx][0], vertex_coords[fx+1][p]]
 
-        # print(f"Triangulo = {triangulos}")
+                    # Encontrando as bordas das partes a serem pintadas para fins de otimização
+                    borders = [min(v[0][0][0], v[1][0][0], v[2][0][0]), max(v[0][0][0], v[1][0][0], v[2][0][0]),
+                               min(v[0][1][0], v[1][1][0], v[2][1][0]), max(v[0][1][0], v[1][1][0], v[2][1][0])]
+                    
+                    # Desenhando triângulos na tela
+                    for x in range(round(borders[0]), round(borders[1])):
+                        for y in range(round(borders[2]), round(borders[3])):
+                            GL.inside(v, (x, y), colors)
+                continue
+            elif (len(vertex_coords[fx+1]) == 1 and fx == len(vertex_coords) - 2):
+                # Caso da ponta final da esfera
+                for p in range(len(vertex_coords[fx])):
+                    # Ordem de conexão dos vértices do triângulo
+                    v = [vertex_coords[fx][p], vertex_coords[fx][p-1], vertex_coords[fx+1][0]]
 
+                    # Encontrando as bordas das partes a serem pintadas para fins de otimização
+                    borders = [min(v[0][0][0], v[1][0][0], v[2][0][0]), max(v[0][0][0], v[1][0][0], v[2][0][0]),
+                               min(v[0][1][0], v[1][1][0], v[2][1][0]), max(v[0][1][0], v[1][1][0], v[2][1][0])]
+                    
+                    # Desenhando triângulos na tela
+                    for x in range(round(borders[0]), round(borders[1])):
+                        for y in range(round(borders[2]), round(borders[3])):
+                            GL.inside(v, (x, y), colors)
+                continue
+            for p in range(len(vertex_coords[fx])):
+                # Faixas do meio
 
-        # Trás coordenadas para o mundo da câmera
+                # Ordem de conexão dos vértices do triângulo
+                v1 = [vertex_coords[fx][p], vertex_coords[fx+1][p], vertex_coords[fx+1][p-1]]
+                v2 = [vertex_coords[fx][p], vertex_coords[fx+1][p-1], vertex_coords[fx][p-1]]
 
-        # Agrupa os pontos
-        all_points = []
-        for i in range(0, len(coords)-2, 3):
-            all_points.append([coords[i], coords[i+1], coords[i+2]])
+                # Encontrando as bordas das partes a serem pintadas para fins de otimização
+                borders = [min(v1[0][0][0], v2[0][0][0], v1[1][0][0], v2[1][0][0], v1[2][0][0], v2[2][0][0]), 
+                           max(v1[0][0][0], v2[0][0][0], v1[1][0][0], v2[1][0][0], v1[2][0][0], v2[2][0][0]),
+                           min(v1[0][1][0], v2[0][1][0], v1[1][1][0], v2[1][1][0], v1[2][1][0], v2[2][1][0]), 
+                           max(v1[0][1][0], v2[0][1][0], v1[1][1][0], v2[1][1][0], v1[2][1][0], v2[2][1][0])]
 
-        # tri = Delaunay(all_points) # Função do scipy.spatial
-        # for triangle in tri:
-        #     for x in range(GL.width):
-        #         for y in range(GL.height):
-        #             GL.inside(triangle, [x, y], colors)
-
-
-        # Junta os vértices e forma triângulos
-
+                # Desenhando triângulos na tela
+                for x in range(math.floor(borders[0]), math.ceil(borders[1])):
+                    for y in range(math.floor(borders[2]), math.ceil(borders[3])):
+                        GL.inside(v1, (x, y), colors)
+                        GL.inside(v2, (x, y), colors)
 
     @staticmethod
     def navigationInfo(headlight):
@@ -539,10 +570,21 @@ class GL:
         # longo de raios paralelos de uma distância infinita.
 
         # O print abaixo é só para vocês verificarem o funcionamento, DEVE SER REMOVIDO.
-        print("DirectionalLight : ambientIntensity = {0}".format(ambientIntensity))
-        print("DirectionalLight : color = {0}".format(color)) # imprime no terminal
-        print("DirectionalLight : intensity = {0}".format(intensity)) # imprime no terminal
-        print("DirectionalLight : direction = {0}".format(direction)) # imprime no terminal
+        print("DirectionalLight : ambientIntensity = {0}".format(ambientIntensity)) # I_ia
+        print("DirectionalLight : color = {0}".format(color)) # imprime no terminal # I_Lrgb
+        print("DirectionalLight : intensity = {0}".format(intensity)) # imprime no terminal # I_i
+        print("DirectionalLight : direction = {0}".format(direction)) # imprime no terminal # L
+
+        L = (-direction[0], -direction[1], -direction[2])
+        # Dúvida:
+        # Como achar o N (vetor normal)? Não deveríamos receber na funcão cada triângulo?
+        
+        # ambient_i = 
+        # diffuse_i = 
+        # specular_i = 
+
+        # I_rgb = O_Ergb + 
+
 
     @staticmethod
     def pointLight(ambientIntensity, color, intensity, location):
