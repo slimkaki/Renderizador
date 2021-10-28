@@ -12,6 +12,7 @@ Disciplina: Computação Gráfica
 Data: 16/08/2021
 """
 
+from os import RTLD_GLOBAL
 import time         # Para operações com tempo
 
 import gpu          # Simula os recursos de uma GPU
@@ -39,6 +40,8 @@ class GL:
                                      [        0,                    0,    0,          1]])
         GL.zBuffer = [ [ None for x in range(GL.width)] for y in range(GL.height) ]
         GL.stack = []
+        GL.isThereLight = False
+        GL.Light = []
     
     @staticmethod
     def pointsToScreen(points):
@@ -109,9 +112,9 @@ class GL:
     def inside(vertices, ponto, colors, orientation = 2, colorPerVertex = False, cores = None, texture=False, texVertex=None, img = None):
         """Função que pinta os pixels delimitados pelos vértices, formando os triângulos"""
 
-        R = int(colors["diffuseColor"][0]*255)
-        G = int(colors["diffuseColor"][1]*255)
-        B = int(colors["diffuseColor"][2]*255)
+        R = int((colors["diffuseColor"][0]+colors["emissiveColor"][0]+colors["specularColor"][0]))
+        G = int((colors["diffuseColor"][1]+colors["emissiveColor"][1]+colors["specularColor"][1]))
+        B = int((colors["diffuseColor"][2]+colors["emissiveColor"][2]+colors["specularColor"][2]))
 
         x, y = ponto[0], ponto[1]
 
@@ -164,6 +167,44 @@ class GL:
                 B = (cores[0][2] * alpha + cores[1][2] * beta + cores[2][2] * gamma) * 255
                 
             # gpu.GPU.set_pixel(int(x), int(y), R, G, B)
+            if GL.isThereLight:
+                # Definindo propriedades do material
+                O_d = np.array([colors["diffuseColor"][0], colors["diffuseColor"][1], colors["diffuseColor"][2]])
+                O_e = np.array([colors["emissiveColor"][0], colors["emissiveColor"][1], colors["emissiveColor"][2]])
+                O_s = np.array([colors["specularColor"][0], colors["specularColor"][1], colors["specularColor"][2]])
+                s = colors["shininess"] # Valor do shininess
+                
+                sum_luz = 0
+                for light in GL.Light:
+                    # print("There is Light!")
+                    # print(f"colors aqui -> {colors}")
+                    #O_a = colors["ambientIntensity"]
+
+                    # Definindo o vetor normal a partir de 2 vetores do plano
+                    p = np.array([x2 - x1, y2 - y1, z2 - z1]) # Vetor p do plano
+                    q = np.array([x3 - x1, y3 - y1, z3 - z1]) # Vetor q do plano
+                    N = np.cross(p, q) # Calculo da Normal (Produto vetorial)
+                    # print(f"N : {N}")
+
+                    # v = np.array([(x1+x2+x3)/3, (y1+y2+y3)/3, (z1+z2+z3)/3])
+                    v = N.copy() # [MUDAR] Isso não tá certo!
+                    
+                    # Calculando valores da luz com material
+                    ambient = light[1] * O_d * s
+                    diffuse = light[3] * O_d * sum(N*light[0])
+                    specular = light[3] * O_s * ((sum(N*((light[0]+v)/math.sqrt(sum((light[0]+v)**2)))))**(s*128))
+                    print(f"\tambient = {ambient} -- diffuse = {diffuse} -- specular = {specular}")
+
+                    sum_luz += (light[2] * (ambient + diffuse + specular))
+
+                I_rgb = O_e + sum_luz
+                
+                print(f"I_rgb = {I_rgb}")
+                R = (I_rgb[0])*255
+                G = (I_rgb[1])*255
+                B = (I_rgb[2])*255
+
+
             Z = 1 / (alpha*(1/z1) + beta*(1/z2) + gamma*(1/z3))
             if (GL.zBuffer[int(y)][int(x)] != None):
                 if (Z < GL.zBuffer[int(y)][int(x)]):
@@ -452,15 +493,10 @@ class GL:
         # raio da esfera que está sendo criada. Para desenhar essa esfera você vai
         # precisar tesselar ela em triângulos, para isso encontre os vértices e defina
         # os triângulos.
-
-        # O print abaixo é só para vocês verificarem o funcionamento, DEVE SER REMOVIDO.
-        print("Sphere : radius = {0}".format(radius)) # imprime no terminal o raio da esfera
-        # print("Sphere : colors = {0}".format(colors)) # imprime no terminal as cores
-
         points = []
         
         # Step de graus a serem calculados
-        step = math.pi/4
+        step = math.pi/10
         degrees_phi = np.arange(0, math.pi+step, step) # Variação dos graus 'phi'
         degrees_theta = np.arange(0, 2*math.pi+step, step) # Variação dos graus 'theta'
 
@@ -559,6 +595,8 @@ class GL:
 
         # O print abaixo é só para vocês verificarem o funcionamento, DEVE SER REMOVIDO.
         print("NavigationInfo : headlight = {0}".format(headlight)) # imprime no terminal
+        if headlight:
+            GL.directionalLight(0.0, [1.0, 1.0, 1.0], 1, [0.0, 0.0, -1.0])
 
     @staticmethod
     def directionalLight(ambientIntensity, color, intensity, direction):
@@ -575,15 +613,11 @@ class GL:
         print("DirectionalLight : intensity = {0}".format(intensity)) # imprime no terminal # I_i
         print("DirectionalLight : direction = {0}".format(direction)) # imprime no terminal # L
 
-        L = (-direction[0], -direction[1], -direction[2])
-        # Dúvida:
-        # Como achar o N (vetor normal)? Não deveríamos receber na funcão cada triângulo?
-        
-        # ambient_i = 
-        # diffuse_i = 
-        # specular_i = 
-
-        # I_rgb = O_Ergb + 
+        GL.isThereLight = True # Flag caso haja luz
+        # Salvando dados da luz em variável global
+        # GL.Light -> Lista com listas de dados das luzes declaradas no x3d
+        # Ordem: [direcao da luz, intensidade ambiente da luz (I_ia), cor da luz (I_Lrgb), intensidazde da luz (I_i)]
+        GL.Light += [[np.array([-direction[0], -direction[1], -direction[2]]), ambientIntensity, np.array(color), intensity]]
 
 
     @staticmethod
@@ -645,7 +679,7 @@ class GL:
         # Interpola não linearmente entre uma lista de vetores 3D. O campo keyValue possui
         # uma lista com os valores a serem interpolados, key possui uma lista respectiva de chaves
         # dos valores em keyValue, a fração a ser interpolada vem de set_fraction que varia de
-        # zeroa a um. O campo keyValue deve conter exatamente tantos vetores 3D quanto os
+        # zero a um. O campo keyValue deve conter exatamente tantos vetores 3D quanto os
         # quadros-chave no key. O campo closed especifica se o interpolador deve tratar a malha
         # como fechada, com uma transições da última chave para a primeira chave. Se os keyValues
         # na primeira e na última chave não forem idênticos, o campo closed será ignorado.
