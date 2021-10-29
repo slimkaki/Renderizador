@@ -109,7 +109,7 @@ class GL:
                     GL.inside(pontos[tri:tri+3], [i, j], colors)
         
     @staticmethod
-    def inside(vertices, ponto, colors, orientation = 2, colorPerVertex = False, cores = None, texture=False, texVertex=None, img = None):
+    def inside(vertices, ponto, colors, orientation = 2, colorPerVertex = False, cores = None, texture=False, texVertex=None, img = None, coordenadas=None):
         """Função que pinta os pixels delimitados pelos vértices, formando os triângulos"""
 
         R = int((colors["diffuseColor"][0]+colors["emissiveColor"][0]+colors["specularColor"][0]))
@@ -166,40 +166,38 @@ class GL:
                 G = (cores[0][1] * alpha + cores[1][1] * beta + cores[2][1] * gamma) * 255
                 B = (cores[0][2] * alpha + cores[1][2] * beta + cores[2][2] * gamma) * 255
                 
-            # gpu.GPU.set_pixel(int(x), int(y), R, G, B)
+            gpu.GPU.set_pixel(int(x), int(y), R, G, B)
             if GL.isThereLight:
                 # Definindo propriedades do material
                 O_d = np.array([colors["diffuseColor"][0], colors["diffuseColor"][1], colors["diffuseColor"][2]])
                 O_e = np.array([colors["emissiveColor"][0], colors["emissiveColor"][1], colors["emissiveColor"][2]])
                 O_s = np.array([colors["specularColor"][0], colors["specularColor"][1], colors["specularColor"][2]])
                 s = colors["shininess"] # Valor do shininess
+                # O_a = colors["ambientIntensity"]
+                
+                # Definindo o vetor normal a partir de 2 vetores do plano
+                p = np.array([coordenadas[1][0] - coordenadas[0][0], coordenadas[1][1] - coordenadas[0][1], coordenadas[1][2] - coordenadas[0][2]]) # Vetor p do plano
+                q = np.array([coordenadas[2][0] - coordenadas[0][0], coordenadas[2][1] - coordenadas[0][1], coordenadas[2][2] - coordenadas[0][2]]) # Vetor q do plano
+                N = np.cross(p, q)# Calculo da Normal (Produto vetorial)
+                norm = np.linalg.norm(N)
+                N = N/norm
+                v = np.array([0.0, 0.0, 1.0])
                 
                 sum_luz = 0
                 for light in GL.Light:
-                    # print("There is Light!")
-                    # print(f"colors aqui -> {colors}")
-                    #O_a = colors["ambientIntensity"]
-
-                    # Definindo o vetor normal a partir de 2 vetores do plano
-                    p = np.array([x2 - x1, y2 - y1, z2 - z1]) # Vetor p do plano
-                    q = np.array([x3 - x1, y3 - y1, z3 - z1]) # Vetor q do plano
-                    N = np.cross(p, q) # Calculo da Normal (Produto vetorial)
-                    # print(f"N : {N}")
-
-                    # v = np.array([(x1+x2+x3)/3, (y1+y2+y3)/3, (z1+z2+z3)/3])
-                    v = N.copy() # [MUDAR] Isso não tá certo!
+                    # print(f"lights -> {len(GL.Light)}")
                     
                     # Calculando valores da luz com material
-                    ambient = light[1] * O_d * s
-                    diffuse = light[3] * O_d * sum(N*light[0])
-                    specular = light[3] * O_s * ((sum(N*((light[0]+v)/math.sqrt(sum((light[0]+v)**2)))))**(s*128))
-                    print(f"\tambient = {ambient} -- diffuse = {diffuse} -- specular = {specular}")
+                    ambient = light[1] * O_d * 0.2 # * O_a no lugar de 0.2
+                    diffuse = light[3] * O_d * np.dot(N, light[0])
 
-                    sum_luz += (light[2] * (ambient + diffuse + specular))
+                    spec_1 = (light[0]+v)/(np.sqrt((light[0]+v)**2))
+                    specular = light[3] * O_s * np.dot(N, spec_1)**(s*128)
+
+                    sum_luz += light[2] * (ambient + diffuse + specular)
 
                 I_rgb = O_e + sum_luz
                 
-                print(f"I_rgb = {I_rgb}")
                 R = (I_rgb[0])*255
                 G = (I_rgb[1])*255
                 B = (I_rgb[2])*255
@@ -496,7 +494,7 @@ class GL:
         points = []
         
         # Step de graus a serem calculados
-        step = math.pi/10
+        step = math.pi/41
         degrees_phi = np.arange(0, math.pi+step, step) # Variação dos graus 'phi'
         degrees_theta = np.arange(0, 2*math.pi+step, step) # Variação dos graus 'theta'
 
@@ -532,6 +530,14 @@ class GL:
         vertex_coords = []
         for i in range(1, len(sizes)):
             vertex_coords.append(coords[0][sizes[i-1]:sizes[i]])
+
+        # 
+        # [[[x1, y1, z1], [x2, y2, z2], [x3, y3, z3]], [...], [...]]
+        c, old_coords = [], []
+        for p in range(0, len(points), 3):
+            c.append([points[p], points[p+1], points[p+2]])
+        for i in range(1, len(sizes)):
+            old_coords.append(c[sizes[i-1]:sizes[i]])
         
         # Desenhando os triângulos na tela
         for fx in range(len(vertex_coords) - 1):
@@ -540,6 +546,7 @@ class GL:
                 for p in range(len(vertex_coords[fx+1])):
                     # Ordem de conexão dos vértices do triângulo
                     v = [vertex_coords[fx+1][p-1], vertex_coords[fx][0], vertex_coords[fx+1][p]]
+                    c = [old_coords[fx+1][p-1], old_coords[fx][0], old_coords[fx+1][p]]
 
                     # Encontrando as bordas das partes a serem pintadas para fins de otimização
                     borders = [min(v[0][0][0], v[1][0][0], v[2][0][0]), max(v[0][0][0], v[1][0][0], v[2][0][0]),
@@ -548,13 +555,14 @@ class GL:
                     # Desenhando triângulos na tela
                     for x in range(round(borders[0]), round(borders[1])):
                         for y in range(round(borders[2]), round(borders[3])):
-                            GL.inside(v, (x, y), colors)
+                            GL.inside(v, (x, y), colors, coordenadas=c)
                 continue
             elif (len(vertex_coords[fx+1]) == 1 and fx == len(vertex_coords) - 2):
                 # Caso da ponta final da esfera
                 for p in range(len(vertex_coords[fx])):
                     # Ordem de conexão dos vértices do triângulo
                     v = [vertex_coords[fx][p], vertex_coords[fx][p-1], vertex_coords[fx+1][0]]
+                    c = [old_coords[fx][p], old_coords[fx][p-1], old_coords[fx+1][0]]
 
                     # Encontrando as bordas das partes a serem pintadas para fins de otimização
                     borders = [min(v[0][0][0], v[1][0][0], v[2][0][0]), max(v[0][0][0], v[1][0][0], v[2][0][0]),
@@ -563,7 +571,7 @@ class GL:
                     # Desenhando triângulos na tela
                     for x in range(round(borders[0]), round(borders[1])):
                         for y in range(round(borders[2]), round(borders[3])):
-                            GL.inside(v, (x, y), colors)
+                            GL.inside(v, (x, y), colors, coordenadas=c)
                 continue
             for p in range(len(vertex_coords[fx])):
                 # Faixas do meio
@@ -571,6 +579,9 @@ class GL:
                 # Ordem de conexão dos vértices do triângulo
                 v1 = [vertex_coords[fx][p], vertex_coords[fx+1][p], vertex_coords[fx+1][p-1]]
                 v2 = [vertex_coords[fx][p], vertex_coords[fx+1][p-1], vertex_coords[fx][p-1]]
+
+                c1 = [old_coords[fx][p], old_coords[fx+1][p], old_coords[fx+1][p-1]]
+                c2 = [old_coords[fx][p], old_coords[fx+1][p-1], old_coords[fx][p-1]]
 
                 # Encontrando as bordas das partes a serem pintadas para fins de otimização
                 borders = [min(v1[0][0][0], v2[0][0][0], v1[1][0][0], v2[1][0][0], v1[2][0][0], v2[2][0][0]), 
@@ -581,8 +592,8 @@ class GL:
                 # Desenhando triângulos na tela
                 for x in range(math.floor(borders[0]), math.ceil(borders[1])):
                     for y in range(math.floor(borders[2]), math.ceil(borders[3])):
-                        GL.inside(v1, (x, y), colors)
-                        GL.inside(v2, (x, y), colors)
+                        GL.inside(v1, (x, y), colors, coordenadas=c1)
+                        GL.inside(v2, (x, y), colors, coordenadas=c2)
 
     @staticmethod
     def navigationInfo(headlight):
@@ -616,7 +627,7 @@ class GL:
         GL.isThereLight = True # Flag caso haja luz
         # Salvando dados da luz em variável global
         # GL.Light -> Lista com listas de dados das luzes declaradas no x3d
-        # Ordem: [direcao da luz, intensidade ambiente da luz (I_ia), cor da luz (I_Lrgb), intensidazde da luz (I_i)]
+        # Ordem: [direcao da luz, intensidade ambiente da luz (I_ia), cor da luz (I_Lrgb), intensidade da luz (I_i)]
         GL.Light += [[np.array([-direction[0], -direction[1], -direction[2]]), ambientIntensity, np.array(color), intensity]]
 
 
