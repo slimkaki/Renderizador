@@ -103,10 +103,16 @@ class GL:
         
         pontos = GL.pointsToScreen(point)
 
+        old_points = []
+        for c in range(0, len(point), 3):
+            old_points += [point[c:c+3]]
+
         for tri in range(0, len(pontos), 3):
+            print(f"[TriangleSet] old_points: {old_points[tri:tri+3]}")
+            print(f"[TriangleSet] pontos: {pontos[tri:tri+3]}\n==================================")
             for i in range(GL.width):
                 for j in range(GL.height):
-                    GL.inside(pontos[tri:tri+3], [i, j], colors)
+                    GL.inside(pontos[tri:tri+3], [i, j], colors, coordenadas=old_points[tri:tri+3])
         
     @staticmethod
     def inside(vertices, ponto, colors, orientation = 2, colorPerVertex = False, cores = None, texture=False, texVertex=None, img = None, coordenadas=None):
@@ -152,7 +158,7 @@ class GL:
             beta  = (-(x - x3)*(y1 - y3) + (y - y3)*(x1 - x3)) / (-(x2 - x3)*(y1 - y3) + (y2 - y3)*(x1 - x3))
             
             gamma = 1 - (alpha + beta) # soma = alpha + beta + gamma # Deve ser sempre igual a 1
-
+            # print(f"[INSIDE - ANTES] orientation = {orientation}")
             if texture:
                 # Pintar a textura
                 tex_x = (texVertex[0][0]*alpha + texVertex[1][0]*beta + texVertex[2][0]*gamma)*img.shape[0]
@@ -166,8 +172,8 @@ class GL:
                 G = (cores[0][1] * alpha + cores[1][1] * beta + cores[2][1] * gamma) * 255
                 B = (cores[0][2] * alpha + cores[1][2] * beta + cores[2][2] * gamma) * 255
                 
-            gpu.GPU.set_pixel(int(x), int(y), R, G, B)
-            if GL.isThereLight:
+            elif GL.isThereLight:
+                # print(f"[INSIDE - DEPOIS] orientation = {orientation}")
                 # Definindo propriedades do material
                 O_d = np.array([colors["diffuseColor"][0], colors["diffuseColor"][1], colors["diffuseColor"][2]])
                 O_e = np.array([colors["emissiveColor"][0], colors["emissiveColor"][1], colors["emissiveColor"][2]])
@@ -176,12 +182,25 @@ class GL:
                 # O_a = colors["ambientIntensity"]
                 
                 # Definindo o vetor normal a partir de 2 vetores do plano
-                p = np.array([coordenadas[1][0] - coordenadas[0][0], coordenadas[1][1] - coordenadas[0][1], coordenadas[1][2] - coordenadas[0][2]]) # Vetor p do plano
-                q = np.array([coordenadas[2][0] - coordenadas[0][0], coordenadas[2][1] - coordenadas[0][1], coordenadas[2][2] - coordenadas[0][2]]) # Vetor q do plano
+                # print(f"[INSIDE] vertices : {vertices}")
+                # print(f"[INSIDE] coordenadas : {coordenadas}")
+                if (orientation % 2 == 0):
+                    o_x1, o_x2, o_x3 = coordenadas[0][0], coordenadas[1][0], coordenadas[2][0]
+                    o_y1, o_y2, o_y3 = coordenadas[0][1], coordenadas[1][1], coordenadas[2][1]
+                    o_z1, o_z2, o_z3 = coordenadas[0][2], coordenadas[1][2], coordenadas[2][2]
+                else:
+                    # Inverte a ordem dos pontos
+                    print("isso nunca vai para o terminal")
+                    o_x1, o_x2, o_x3 = coordenadas[2][0], coordenadas[1][0], coordenadas[0][0]
+                    o_y1, o_y2, o_y3 = coordenadas[2][1], coordenadas[1][1], coordenadas[0][1]
+                    o_z1, o_z2, o_z3 = coordenadas[2][2], coordenadas[1][2], coordenadas[0][2]
+                
+                p = np.array([o_x2 - o_x1, o_y2 - o_y1, o_z2 - o_z1]) # Vetor p do plano
+                q = np.array([o_x3 - o_x1, o_y3 - o_y1, o_z3 - o_z1]) # Vetor q do plano
                 N = np.cross(p, q)# Calculo da Normal (Produto vetorial)
                 norm = np.linalg.norm(N)
                 N = N/norm
-                v = np.array([0.0, 0.0, 1.0])
+                v = np.array([0.1, 0.1, 1.0])
                 
                 sum_luz = 0
                 for light in GL.Light:
@@ -191,8 +210,9 @@ class GL:
                     ambient = light[1] * O_d * 0.2 # * O_a no lugar de 0.2
                     diffuse = light[3] * O_d * np.dot(N, light[0])
 
-                    spec_1 = (light[0]+v)/(np.sqrt((light[0]+v)**2))
+                    spec_1 = (light[0]+v)/((np.sqrt((light[0]+v)**2)))
                     specular = light[3] * O_s * np.dot(N, spec_1)**(s*128)
+                    # print(f"{ambient} -- {diffuse} -- {specular}")
 
                     sum_luz += light[2] * (ambient + diffuse + specular)
 
@@ -202,6 +222,19 @@ class GL:
                 G = (I_rgb[1])*255
                 B = (I_rgb[2])*255
 
+                if (R > 255):
+                    R = 255
+                elif (R < 0 or math.isnan(R)):
+                    R = 0
+                if (B > 255):
+                    B = 255
+                elif (B < 0 or math.isnan(B)):
+                    B = 0
+                if (G > 255):
+                    G = 255
+                elif (G < 0 or math.isnan(G)):
+                    G = 0
+                # print(R,G,B)
 
             Z = 1 / (alpha*(1/z1) + beta*(1/z2) + gamma*(1/z3))
             if (GL.zBuffer[int(y)][int(x)] != None):
@@ -273,6 +306,7 @@ class GL:
         # scale rot transl
 
         if translation:
+            #print("aaaaaaaaaaaaaaaaaaaaaaaaa",translation[0],translation[1],translation[2],)
             GL.translation_matrix = np.array([[1, 0, 0, translation[0]],
                                               [0, 1, 0, translation[1]],
                                               [0, 0, 1, translation[2]],
@@ -330,14 +364,20 @@ class GL:
 
         pontos = GL.pointsToScreen(point)
 
+        old_points = []
+        for c in range(0, len(point), 3):
+            old_points += [point[c:c+3]]
+
         orientation = 2
         for i in range(stripCount[0]):
-            for x in range(GL.width):
-                for y in range(GL.height):
+            #borders = [min(pontos[i][0][0], pontos[i+1][0][0], pontos[i+2][0][0]), max(pontos[i][0][0], pontos[i+1][0][0], pontos[i+2][0][0]),
+            #           min(pontos[i][1][0], pontos[i+1][1][0], pontos[i+2][1][0]), max(pontos[i][1][0], pontos[i+1][1][0], pontos[i+2][1][0])]
+            for x in range(GL.width):#math.floor(borders[0]), math.ceil(borders[1])):
+                for y in range(GL.height):#math.floor(borders[2]), math.ceil(borders[3])):
                     if (i+3 > len(pontos)):
                         break
                     else:
-                        GL.inside(pontos[i:i+3], [x, y], colors, orientation)
+                        GL.inside(pontos[i:i+3], [x, y], colors, orientation=orientation, coordenadas=old_points[i:i+3])
             orientation += 1
 
     @staticmethod
@@ -356,14 +396,23 @@ class GL:
         # todos no sentido horário ou todos no sentido anti-horário, conforme especificado.
 
         pontos = GL.pointsToScreen(point)
+        old_points = []
+        for c in range(0, len(point), 3):
+            old_points += [point[c:c+3]]
         orientation = 1
+
         for i in index:
             if (index[i+2] < 0):
                 break
             orientation += 1
-            for x in range(GL.width):
-                for y in range(GL.height):
-                    GL.inside(pontos[i:i+3], [x, y], colors, orientation)
+            borders = [min(pontos[i][0][0], pontos[i+1][0][0], pontos[i+2][0][0]), max(pontos[i][0][0], pontos[i+1][0][0], pontos[i+2][0][0]),
+                       min(pontos[i][1][0], pontos[i+1][1][0], pontos[i+2][1][0]), max(pontos[i][1][0], pontos[i+1][1][0], pontos[i+2][1][0])]
+            for x in range(math.floor(borders[0]), math.ceil(borders[1])):
+                for y in range(math.floor(borders[2]), math.ceil(borders[3])):
+                    # print("==================================================")
+                    # print(f"pontos[{i}:{i+3}] = {pontos[i:i+3]}")
+                    # print(f"old_points[{i}:{i+3}] = {old_points[i:i+3]}")
+                    GL.inside(pontos[i:i+3], [x, y], colors, orientation= orientation, coordenadas=old_points[i:i+3])
 
     @staticmethod
     def box(size, colors):
@@ -431,15 +480,12 @@ class GL:
         # textura para o poligono, para isso, use as coordenadas de textura e depois aplique a
         # cor da textura conforme a posição do mapeamento. Dentro da classe GPU já está
         # implementadado um método para a leitura de imagens.
-
-        # Os prints abaixo são só para vocês verificarem o funcionamento, DEVE SER REMOVIDO.
         if current_texture:
             image = gpu.GPU.load_texture(current_texture[0])
 
-        # Dividir os pontos em vertices 
+        # Dividir os pontos em vertices
         vertex = GL.pointsToScreen(coord)
-        triangle, trueColor = [], []
-        # print(f"todos os vertices: {vertex}")
+        triangle, old_vertex, trueColor = [], [], []
         
         if colorPerVertex and color and colorIndex:
             cores = []
@@ -448,13 +494,16 @@ class GL:
 
             for vert, c in zip(coordIndex, colorIndex):
                 if vert < 0 or c < 0:
-                    for x in range(GL.width):
-                        for y in range(GL.height):
-                            GL.inside(triangle, [x, y], colors, colorPerVertex = colorPerVertex, cores = trueColor)
-                    triangle, trueColor = [], []
+                    borders = [min(triangle[0][0][0], triangle[1][0][0], triangle[2][0][0]), max(triangle[0][0][0], triangle[1][0][0], triangle[2][0][0]),
+                               min(triangle[0][1][0], triangle[1][1][0], triangle[2][1][0]), max(triangle[0][1][0], triangle[1][1][0], triangle[2][1][0])]
+                    for x in range(math.floor(borders[0]), math.ceil(borders[1])):
+                        for y in range(math.floor(borders[2]), math.ceil(borders[3])):
+                            GL.inside(triangle, [x, y], colors, colorPerVertex = colorPerVertex, cores = trueColor, coordenadas=old_vertex)
+                    triangle, trueColor, old_vertex = [], [], []
                     continue
                 trueColor.append(cores[c])
                 triangle.append(vertex[vert])
+                old_vertex.append(coord[vert:vert+3])
 
         elif (texCoord and texCoordIndex):
             texturePoints = []
@@ -463,25 +512,37 @@ class GL:
             texTriangle = []
             for vert, tex in zip(coordIndex, texCoordIndex):
                 if vert < 0:
-                    for x in range(GL.width):
-                        for y in range(GL.height):
-                            GL.inside(triangle, [x, y], colors, texture=True, texVertex=texTriangle, img=image)
-                    triangle, texTriangle = [], []
+                    # Encontrando as bordas das partes a serem pintadas para fins de otimização
+                    borders = [min(triangle[0][0][0], triangle[1][0][0], triangle[2][0][0]), max(triangle[0][0][0], triangle[1][0][0], triangle[2][0][0]),
+                               min(triangle[0][1][0], triangle[1][1][0], triangle[2][1][0]), max(triangle[0][1][0], triangle[1][1][0], triangle[2][1][0])]
+                    for x in range(math.floor(borders[0]), math.ceil(borders[1])):
+                        for y in range(math.floor(borders[2]), math.ceil(borders[3])):
+                            GL.inside(triangle, [x, y], colors, texture=True, texVertex=texTriangle, img=image, coordenadas=old_vertex)
+                    triangle, texTriangle, old_vertex = [], [], []
                     continue
                 triangle.append(vertex[vert])
                 texTriangle.append(texturePoints[tex])
+                old_vertex.append(coord[vert:vert+3])
         else:
+            # ori = 2
             for vert in coordIndex:
                 if vert < 0:
-                    for x in range(GL.width):
-                        for y in range(GL.height):
-                            GL.inside(triangle, [x, y], colors)
-                    triangle = []
+                    borders = [min(triangle[0][0][0], triangle[1][0][0], triangle[2][0][0]), max(triangle[0][0][0], triangle[1][0][0], triangle[2][0][0]),
+                               min(triangle[0][1][0], triangle[1][1][0], triangle[2][1][0]), max(triangle[0][1][0], triangle[1][1][0], triangle[2][1][0])]
+                    #print(f"===========ori = {ori}===============")
+                    for x in range(math.floor(borders[0]), math.ceil(borders[1])):
+                        for y in range(math.floor(borders[2]), math.ceil(borders[3])):
+                            GL.inside(triangle, [x, y], colors, coordenadas=old_vertex)
+                    triangle, old_vertex = [], []
+                    #ori += 1
                     continue
                 triangle.append(vertex[vert])
+                old_vertex.append(coord[vert:vert+3])
+                
+                # print(f"old_vertex = {old_vertex}")
 
         # Exemplo de desenho de um pixel branco na coordenada 10, 10
-        gpu.GPU.draw_pixels([10, 10], gpu.GPU.RGB8, [255, 255, 255])  # altera pixel
+        # gpu.GPU.draw_pixels([10, 10], gpu.GPU.RGB8, [255, 255, 255])  # altera pixel
 
     @staticmethod
     def sphere(radius, colors):
@@ -494,7 +555,7 @@ class GL:
         points = []
         
         # Step de graus a serem calculados
-        step = math.pi/41
+        step = math.pi/81
         degrees_phi = np.arange(0, math.pi+step, step) # Variação dos graus 'phi'
         degrees_theta = np.arange(0, 2*math.pi+step, step) # Variação dos graus 'theta'
 
@@ -702,9 +763,49 @@ class GL:
         print("SplinePositionInterpolator : closed = {0}".format(closed))
 
         # Abaixo está só um exemplo de como os dados podem ser calculados e transferidos
-        value_changed = [0.0, 0.0, 0.0]
+        # value_changed = [0.0, 0.0, 0.0]
+        t_antes = []
+        t_depois = []
+        # 0.5
+        # [0.0, 0.2, 0.4, 0.6, 0.8, 1.0]
+        new_keyValue = []
+        for k in range(0, len(keyValue), 3):
+            new_keyValue += [np.array([keyValue[k], keyValue[k+1], keyValue[k+2]])]
+            
+        if not closed:
+            for t in range(len(key)):
+                if set_fraction < key[t]:
+                    t_antes += [key[t-1], t]
+                    t_depois += [key[t], t]
+                    break
+        else:
+            t_antes += [key[0], 0]
+            t_depois += [key[1], 0]
+            T0 = np.array([0.0, 0.0, 0.0])
+        s = (set_fraction - t_antes[0])/(t_depois[0] - t_antes[0])
         
-        return value_changed
+        T1 = (new_keyValue[t_depois[1]] - new_keyValue[t_antes[1]])/2
+        T2 = (new_keyValue[t_depois[1]] - new_keyValue[t_antes[1]])/2
+        
+        S = np.array([[s**3],
+                      [s**2],
+                      [s],
+                      [1]])
+        H = np.array([[2,-2,1,1], [-3,3,-2,-1], [0, 0, 1, 0], [1, 0, 0, 0]])
+        
+        if(closed):
+            C = np.array([new_keyValue[t_antes[1]], new_keyValue[t_depois[1]], T0, T0])
+        else:
+            C = np.array([new_keyValue[t_antes[1]], new_keyValue[t_depois[1]], T1, T2])
+            
+        print(f"S = {S}")
+        print(f"H = {H}")
+        print(f"C = {C}")
+
+        V_s = np.dot(np.dot(np.matrix.transpose(S), H), C)
+        print(f"V_s = {np.ndarray.tolist(V_s[0])} -- {type(np.ndarray.tolist(V_s[0]))}")
+        
+        return np.ndarray.tolist(V_s[0])
 
     @staticmethod
     def orientationInterpolator(set_fraction, key, keyValue):
