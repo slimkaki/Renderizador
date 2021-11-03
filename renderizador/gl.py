@@ -108,8 +108,8 @@ class GL:
             old_points += [point[c:c+3]]
 
         for tri in range(0, len(pontos), 3):
-            print(f"[TriangleSet] old_points: {old_points[tri:tri+3]}")
-            print(f"[TriangleSet] pontos: {pontos[tri:tri+3]}\n==================================")
+            # print(f"[TriangleSet] old_points: {old_points[tri:tri+3]}")
+            # print(f"[TriangleSet] pontos: {pontos[tri:tri+3]}\n==================================")
             for i in range(GL.width):
                 for j in range(GL.height):
                     GL.inside(pontos[tri:tri+3], [i, j], colors, coordenadas=old_points[tri:tri+3])
@@ -190,7 +190,7 @@ class GL:
                     o_z1, o_z2, o_z3 = coordenadas[0][2], coordenadas[1][2], coordenadas[2][2]
                 else:
                     # Inverte a ordem dos pontos
-                    print("isso nunca vai para o terminal")
+                    # print("isso nunca vai para o terminal")
                     o_x1, o_x2, o_x3 = coordenadas[2][0], coordenadas[1][0], coordenadas[0][0]
                     o_y1, o_y2, o_y3 = coordenadas[2][1], coordenadas[1][1], coordenadas[0][1]
                     o_z1, o_z2, o_z3 = coordenadas[2][2], coordenadas[1][2], coordenadas[0][2]
@@ -199,42 +199,37 @@ class GL:
                 q = np.array([o_x3 - o_x1, o_y3 - o_y1, o_z3 - o_z1]) # Vetor q do plano
                 N = np.cross(p, q)# Calculo da Normal (Produto vetorial)
                 norm = np.linalg.norm(N)
-                N = N/norm
-                v = np.array([0.1, 0.1, 1.0])
+                N = np.divide(N, norm)
+                v = np.array([0.0, 0.0, 1.0])
                 
-                sum_luz = 0
+                sum_luz = np.array([0.0, 0.0, 0.0])
                 for light in GL.Light:
-                    # print(f"lights -> {len(GL.Light)}")
-                    
                     # Calculando valores da luz com material
-                    ambient = light[1] * O_d * 0.2 # * O_a no lugar de 0.2
-                    diffuse = light[3] * O_d * np.dot(N, light[0])
+                    ambient = O_d * light[1] * 0.2 # * O_a no lugar de 0.2
+                    diffuse = O_d * light[3] * np.dot(N, light[0])
 
-                    spec_1 = (light[0]+v)/((np.sqrt((light[0]+v)**2)))
-                    specular = light[3] * O_s * np.dot(N, spec_1)**(s*128)
-                    # print(f"{ambient} -- {diffuse} -- {specular}")
-
+                    spec_1 = np.divide(np.add(light[0], v), np.linalg.norm(np.add(light[0], v)))
+                    spec_2 = np.dot(N, spec_1)
+                    specular = O_s * light[3] * spec_2**(s*128)
                     sum_luz += light[2] * (ambient + diffuse + specular)
 
                 I_rgb = O_e + sum_luz
                 
-                R = (I_rgb[0])*255
-                G = (I_rgb[1])*255
-                B = (I_rgb[2])*255
-
+                R = I_rgb[0]*255
+                G = I_rgb[1]*255
+                B = I_rgb[2]*255
                 if (R > 255):
                     R = 255
-                elif (R < 0 or math.isnan(R)):
+                elif (R < 0 or np.isnan(R)):
                     R = 0
                 if (B > 255):
                     B = 255
-                elif (B < 0 or math.isnan(B)):
+                elif (B < 0 or np.isnan(B)):
                     B = 0
                 if (G > 255):
                     G = 255
-                elif (G < 0 or math.isnan(G)):
+                elif (G < 0 or np.isnan(G)):
                     G = 0
-                # print(R,G,B)
 
             Z = 1 / (alpha*(1/z1) + beta*(1/z2) + gamma*(1/z3))
             if (GL.zBuffer[int(y)][int(x)] != None):
@@ -244,9 +239,6 @@ class GL:
             else:
                 GL.zBuffer[int(y)][int(x)] = Z
                 gpu.GPU.draw_pixels([int(x), int(y)], gpu.GPU.RGB8, [R, G, B])  # altera pixel
-
-            # print(f"[FUNC INSIDE] GL.zBuffer = {GL.zBuffer}")
-            # if (Z < GL.zBuffer[int(x)][int(y)])
 
             
 
@@ -437,6 +429,20 @@ class GL:
 
         pontos = GL.pointsToScreen(points)
 
+        old_coords = [[points[0], points[1], points[2]], # 1  -> frontal
+                      [points[2], points[3], points[0]], # 2  -> frontal
+                      [points[3], points[2], points[5]], # 7  -> superior
+                      [points[5], points[4], points[3]], # 8  -> superior
+                      [points[1], points[7], points[5]], # 11 -> direita
+                      [points[5], points[2], points[1]],  # 12 -> direita
+                      [points[4], points[5], points[6]], # 9 -> Nao aparece
+                      [points[5], points[6], points[7]], # 10 -> Nao aparece
+                      [points[6], points[4], points[0]], # 3 -> Nao aparece
+                      [points[4], points[3], points[0]], # 4 -> Nao aparece
+                      [points[7], points[1], points[0]], # 5 -> Nao aparece
+                      [points[7], points[6], points[0]] # 6 -> Nao Aparece
+        ]
+
         valid_triangles = [[pontos[0], pontos[1], pontos[2]], # 1  -> frontal
                             [pontos[2], pontos[3], pontos[0]], # 2  -> frontal
                             [pontos[3], pontos[2], pontos[5]], # 7  -> superior
@@ -454,8 +460,8 @@ class GL:
         for triangulo in range(0, len(valid_triangles), 2):
             for x in range(GL.width):
                 for y in range(GL.height):
-                    GL.inside(valid_triangles[triangulo], [x, y], colors, orientation)
-                    GL.inside(valid_triangles[triangulo+1], [x, y], colors, orientation)
+                    GL.inside(valid_triangles[triangulo], [x, y], colors, orientation, coordenadas=old_coords)
+                    GL.inside(valid_triangles[triangulo+1], [x, y], colors, orientation, coordenadas=old_coords)
             orientation += 1
 
     @staticmethod
@@ -524,17 +530,14 @@ class GL:
                 texTriangle.append(texturePoints[tex])
                 old_vertex.append(coord[vert:vert+3])
         else:
-            # ori = 2
             for vert in coordIndex:
                 if vert < 0:
                     borders = [min(triangle[0][0][0], triangle[1][0][0], triangle[2][0][0]), max(triangle[0][0][0], triangle[1][0][0], triangle[2][0][0]),
                                min(triangle[0][1][0], triangle[1][1][0], triangle[2][1][0]), max(triangle[0][1][0], triangle[1][1][0], triangle[2][1][0])]
-                    #print(f"===========ori = {ori}===============")
                     for x in range(math.floor(borders[0]), math.ceil(borders[1])):
                         for y in range(math.floor(borders[2]), math.ceil(borders[3])):
                             GL.inside(triangle, [x, y], colors, coordenadas=old_vertex)
                     triangle, old_vertex = [], []
-                    #ori += 1
                     continue
                 triangle.append(vertex[vert])
                 old_vertex.append(coord[vert:vert+3])
@@ -592,7 +595,6 @@ class GL:
         for i in range(1, len(sizes)):
             vertex_coords.append(coords[0][sizes[i-1]:sizes[i]])
 
-        # 
         # [[[x1, y1, z1], [x2, y2, z2], [x3, y3, z3]], [...], [...]]
         c, old_coords = [], []
         for p in range(0, len(points), 3):
@@ -679,12 +681,6 @@ class GL:
         # que emana da fonte de luz no sistema de coordenadas local. A luz é emitida ao
         # longo de raios paralelos de uma distância infinita.
 
-        # O print abaixo é só para vocês verificarem o funcionamento, DEVE SER REMOVIDO.
-        print("DirectionalLight : ambientIntensity = {0}".format(ambientIntensity)) # I_ia
-        print("DirectionalLight : color = {0}".format(color)) # imprime no terminal # I_Lrgb
-        print("DirectionalLight : intensity = {0}".format(intensity)) # imprime no terminal # I_i
-        print("DirectionalLight : direction = {0}".format(direction)) # imprime no terminal # L
-
         GL.isThereLight = True # Flag caso haja luz
         # Salvando dados da luz em variável global
         # GL.Light -> Lista com listas de dados das luzes declaradas no x3d
@@ -770,22 +766,47 @@ class GL:
         # [0.0, 0.2, 0.4, 0.6, 0.8, 1.0]
         new_keyValue = []
         for k in range(0, len(keyValue), 3):
-            new_keyValue += [np.array([keyValue[k], keyValue[k+1], keyValue[k+2]])]
-            
-        if not closed:
-            for t in range(len(key)):
-                if set_fraction < key[t]:
-                    t_antes += [key[t-1], t]
-                    t_depois += [key[t], t]
-                    break
-        else:
-            t_antes += [key[0], 0]
-            t_depois += [key[1], 0]
-            T0 = np.array([0.0, 0.0, 0.0])
-        s = (set_fraction - t_antes[0])/(t_depois[0] - t_antes[0])
+            new_keyValue += [np.array([keyValue[k], keyValue[k+1], keyValue[k+2]])] # Coordenadas ao longo do tempo
         
-        T1 = (new_keyValue[t_depois[1]] - new_keyValue[t_antes[1]])/2
-        T2 = (new_keyValue[t_depois[1]] - new_keyValue[t_antes[1]])/2
+        if (set_fraction < key[1] or set_fraction > key[-2]):
+            if not closed:
+                if (set_fraction < key[1]):
+                    t_antes += [key[0], 0]
+                    t_depois += [key[1], 1]
+                else:
+                    t_antes += [key[-2], -2]
+                    t_depois += [key[-1], -1]
+            else:
+                if (set_fraction < key[1]):
+                    t_antes += [key[-1], -1]
+                    t_depois += [key[1], 1]
+                else:
+                    if (set_fraction == key[-1]):
+                        t_antes += [key[-1], -1]
+                        t_depois += [key[0], 0]
+                    else:
+                        t_antes += [key[-2], -2]
+                        t_depois += [key[-1], -1]
+                    
+
+        else:
+            # print(f"set_fraction = {set_fraction}")
+            for t in range(1, len(key)):
+                # print(f"set_fraction : {set_fraction} ; key[{t}] : {key[t]}")
+                if set_fraction < key[t]:
+                    t_antes += [key[t-1], t-1]
+                    t_depois += [key[t], t]
+                    # print(f"t_antes : {t_antes} ; t_depois : {t_depois}")
+                    break
+        if closed:
+            s = (set_fraction - t_antes[0])/(t_depois[0] - t_antes[0])
+            
+            T1 = (new_keyValue[t_depois[1]] - new_keyValue[t_antes[1]-1])/2
+            T2 = (new_keyValue[-(len(key) - (t_depois[1]+1))] - new_keyValue[t_antes[1]])/2
+            
+            # print(f"len(key) = {len(key)} => (new_keyValue[{t_depois[1]}] - new_keyValue[{t_antes[1]-1}])/2\nnew_keyValue[{-(len(key) - (t_depois[1]))}] - new_keyValue[{t_antes[1]+1}] / 2")
+        else:
+            T1, T2 = np.array([0.0, 0.0, 0.0]), np.array([0.0, 0.0, 0.0])
         
         S = np.array([[s**3],
                       [s**2],
@@ -793,17 +814,19 @@ class GL:
                       [1]])
         H = np.array([[2,-2,1,1], [-3,3,-2,-1], [0, 0, 1, 0], [1, 0, 0, 0]])
         
-        if(closed):
-            C = np.array([new_keyValue[t_antes[1]], new_keyValue[t_depois[1]], T0, T0])
-        else:
-            C = np.array([new_keyValue[t_antes[1]], new_keyValue[t_depois[1]], T1, T2])
+        # if(closed):
+        #     C = np.array([new_keyValue[t_antes[1]], new_keyValue[t_depois[1]], T0, T0])
+        # else:
+        # print(f"T1 = {T1} ; T2 = {T2}")
+        # print(f"C = {np.array([new_keyValue[t_antes[1]], new_keyValue[t_depois[1]]])}")
+        C = np.array([new_keyValue[t_antes[1]], new_keyValue[t_depois[1]], T1, T2])
             
-        print(f"S = {S}")
-        print(f"H = {H}")
-        print(f"C = {C}")
+        # print(f"S = {S}")
+        # print(f"H = {H}")
+        # print(f"C = {C}")
 
         V_s = np.dot(np.dot(np.matrix.transpose(S), H), C)
-        print(f"V_s = {np.ndarray.tolist(V_s[0])} -- {type(np.ndarray.tolist(V_s[0]))}")
+        # print(f"V_s = {np.ndarray.tolist(V_s[0])} -- {type(np.ndarray.tolist(V_s[0]))}")
         
         return np.ndarray.tolist(V_s[0])
 
